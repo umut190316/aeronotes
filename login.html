@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Yazar Girişi · AeroNotes</title>
+  <meta name="robots" content="noindex">
+  <meta name="description" content="AeroNotes — a student blog on aerospace and space by Umutcan Bakırcı.">
+  <meta name="author" content="Umutcan Bakırcı">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="login">
+<header class="site-header" id="site-header"></header>
+<main class="container">
+  <div class="login-card">
+    <h1>Yazar girişi</h1>
+    <p class="hint">Bu sayfa sadece blog sahibi içindir. Giriş anahtarın yalnızca bu tarayıcıda saklanır.</p>
+    <form id="loginForm" autocomplete="off">
+      <div class="field">
+        <label for="token">Giriş anahtarı</label>
+        <input id="token" name="token" type="password" placeholder="github_pat_…" required>
+      </div>
+      <button class="btn" type="submit" style="width:100%;justify-content:center">Giriş yap</button>
+      <p id="loginMsg" class="hint"></p>
+    </form>
+    <details>
+      <summary class="hint">Anahtarı nereden alırım?</summary>
+      <ol class="hint">
+        <li><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com/settings/personal-access-tokens/new</a> sayfasını aç.</li>
+        <li><b>Token name</b>: AeroNotes · <b>Expiration</b>: istediğin süre.</li>
+        <li><b>Repository access</b> → <i>Only select repositories</i> → <b>aeronotes</b>.</li>
+        <li><b>Permissions</b> → <b>Contents</b> → <i>Read and write</i>.</li>
+        <li><b>Generate token</b>'a bas, çıkan anahtarı kopyalayıp buraya yapıştır.</li>
+      </ol>
+    </details>
+  </div>
+</main>
+<footer class="site-footer" id="site-footer"></footer>
+<script src="js/posts.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

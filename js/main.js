@@ -16,6 +16,27 @@
     Technology: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/></svg>'
   };
 
+  /* ---------- Author auth (GitHub token kept only in this browser) ---------- */
+  const AUTH_KEY = "aeronotes_author_token";
+  const auth = {
+    get() { try { return localStorage.getItem(AUTH_KEY) || ""; } catch { return ""; } },
+    set(t) { try { localStorage.setItem(AUTH_KEY, t); } catch {} },
+    clear() { try { localStorage.removeItem(AUTH_KEY); } catch {} },
+    get on() { return !!this.get(); }
+  };
+  async function gh(path, opts = {}) {
+    const res = await fetch("https://api.github.com" + path, {
+      ...opts,
+      headers: { Accept: "application/vnd.github+json", Authorization: "Bearer " + auth.get(), ...(opts.headers || {}) }
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || "GitHub error " + res.status);
+    return data;
+  }
+  const b64decode = (s) => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g, "")), (c) => c.charCodeAt(0)));
+  const b64encodeText = (s) => { let bin = ""; new TextEncoder().encode(s).forEach((b) => (bin += String.fromCharCode(b))); return btoa(bin); };
+  const fileToB64 = (file) => new Promise((ok, fail) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1]); r.onerror = fail; r.readAsDataURL(file); });
+
   const sorted = POSTS.slice().sort((a, b) => b.date.localeCompare(a.date));
   const $ = (s, el = document) => el.querySelector(s);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -75,14 +96,15 @@
       <nav class="nav-links" id="navLinks">${link("index.html", "Home", "home")}${link("articles.html", "Articles", "articles")}${link("about.html", "About", "about")}</nav>
       <div class="nav-tools">
         <button class="icon-btn" id="searchBtn" aria-label="Search">${ICONS.search}</button>
-        <a class="btn" href="write.html">${ICONS.pen}<span class="label">Write</span></a>
+        ${auth.on ? `<a class="btn" href="write.html">${ICONS.pen}<span class="label">Write</span></a>
+        <button class="icon-btn" id="logoutBtn" aria-label="Log out" title="Çıkış yap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg></button>` : ""}
         <button class="icon-btn menu-toggle" id="menuBtn" aria-label="Menu">${ICONS.menu}</button>
       </div></div>`;
   }
 
   function footer() {
     return `<div class="container"><span>© ${new Date().getFullYear()} ${esc(SITE.name)} · Written by ${esc(SITE.author)}</span>
-      <span>${esc(SITE.tagline)}</span></div>`;
+      <span>${esc(SITE.tagline)}${auth.on ? "" : ' · <a href="login.html">Author login</a>'}</span></div>`;
   }
 
   function setupSearch() {
@@ -165,7 +187,28 @@
       $("#statWords").textContent = Math.round(POSTS.reduce((s, p) => s + p.content.split(/\s+/).length, 0) / 100) / 10 + "k";
     },
 
+    login() {
+      if (auth.on) { location.replace("write.html"); return; }
+      const f = $("#loginForm"), msg = $("#loginMsg");
+      f.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const token = f.token.value.trim();
+        if (!token) return;
+        msg.textContent = "Kontrol ediliyor…"; msg.className = "hint";
+        auth.set(token);
+        try {
+          const repo = await gh("/repos/" + SITE.repo);
+          if (!repo.permissions || !repo.permissions.push) throw new Error("Bu anahtarın siteye yazma izni yok.");
+          location.replace("write.html");
+        } catch (err) {
+          auth.clear();
+          msg.textContent = "Giriş başarısız: " + err.message; msg.className = "hint error";
+        }
+      });
+    },
+
     write() {
+      if (!auth.on) { location.replace("login.html"); return; }
       const f = $("#writeForm");
       f.category.innerHTML = CATEGORIES.map((c) => `<option>${esc(c)}</option>`).join("");
       const now = new Date();
@@ -188,6 +231,42 @@
         $("#code").textContent = `  {\n${fields}\n    content: \`\n${f.content.value.replace(/`/g, "\\`").replace(/\$\{/g, "\\${")}\n\`\n  },`;
       };
       f.addEventListener("input", update);
+      f.addEventListener("change", update);
+
+      $("#publishBtn").addEventListener("click", async () => {
+        const btn = $("#publishBtn"), msg = $("#publishMsg");
+        if (!f.title.value.trim() || !f.content.value.trim()) { msg.textContent = "Başlık ve içerik boş olamaz."; msg.className = "hint error"; return; }
+        btn.disabled = true; msg.className = "hint"; msg.textContent = "Yayınlanıyor…";
+        try {
+          const file = f.coverFile.files[0];
+          if (file) {
+            const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+            const path = "assets/" + slug(f.title.value) + "-" + Date.now() + "." + ext;
+            await gh(`/repos/${SITE.repo}/contents/${path}`, { method: "PUT", body: JSON.stringify({ message: "Add cover: " + f.title.value, content: await fileToB64(file) }) });
+            f.cover.insertAdjacentHTML("beforeend", `<option value="${path}">${esc(file.name)}</option>`);
+            f.cover.value = path; f.coverFile.value = ""; update();
+          }
+          const cur = await gh(`/repos/${SITE.repo}/contents/js/posts.js`);
+          const text = b64decode(cur.content);
+          const m = text.match(/const POSTS = \[\r?\n/);
+          if (!m) throw new Error("posts.js beklenen formatta değil.");
+          const at = m.index + m[0].length;
+          const updated = text.slice(0, at) + $("#code").textContent + "\n" + text.slice(at);
+          await gh(`/repos/${SITE.repo}/contents/js/posts.js`, { method: "PUT", body: JSON.stringify({ message: "New post: " + f.title.value, content: b64encodeText(updated), sha: cur.sha }) });
+          const url = "post.html?id=" + encodeURIComponent(slug(f.title.value));
+          msg.className = "hint ok";
+          msg.innerHTML = `✓ Yayınlandı! 1–2 dakika içinde sitede görünür: <a href="${url}">yazıyı aç</a>`;
+          try { localStorage.removeItem("aeronotes_draft"); } catch {}
+        } catch (err) {
+          msg.className = "hint error"; msg.textContent = "Yayınlanamadı: " + err.message;
+          if (/bad credentials/i.test(err.message)) { auth.clear(); }
+        } finally { btn.disabled = false; }
+      });
+
+      // keep an unsent draft in this browser
+      const fields = ["title", "excerpt", "category", "cover", "content"];
+      try { const d = JSON.parse(localStorage.getItem("aeronotes_draft") || "null"); if (d) fields.forEach((k) => d[k] && (f[k].value = d[k])); } catch {}
+      f.addEventListener("input", () => { try { localStorage.setItem("aeronotes_draft", JSON.stringify(Object.fromEntries(fields.map((k) => [k, f[k].value])))); } catch {} });
       $("#copyBtn").addEventListener("click", async () => {
         try { await navigator.clipboard.writeText($("#code").textContent); $("#copyBtn").textContent = "Copied!"; }
         catch { $("#copyBtn").textContent = "Select & copy manually"; }
@@ -207,6 +286,8 @@
     $("#site-header").innerHTML = header(page);
     $("#site-footer").innerHTML = footer();
     $("#menuBtn").addEventListener("click", () => $("#navLinks").classList.toggle("open"));
+    const lo = $("#logoutBtn");
+    if (lo) lo.addEventListener("click", () => { auth.clear(); location.href = "index.html"; });
     setupSearch();
     if (pages[page]) pages[page]();
   });

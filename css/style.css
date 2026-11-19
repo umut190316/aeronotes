@@ -234,3 +234,17 @@ h1, h2, h3, h4 { color: var(--ink); line-height: 1.2; margin: 0; letter-spacing:
   .page-head h1 { font-size: 32px; }
 }
 @media (min-width: 721px) { .nav-tools { display: flex; gap: 8px; align-items: center; } }
+
+/* ---------- Author login / publish ---------- */
+.login-card { max-width: 440px; margin: 64px auto 96px; padding: 32px; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+.login-card h1 { font-size: 28px; margin-bottom: 6px; }
+.login-card details { margin-top: 16px; }
+.login-card ol { padding-left: 20px; line-height: 1.7; }
+.login-card a, .hint a, .site-footer a { color: var(--navy-600); text-decoration: underline; text-underline-offset: 3px; }
+.hint.error { color: #b42318; }
+.hint.ok { color: #067647; }
+.publish-bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 4px 0 8px; }
+.publish-bar .btn { padding: 11px 28px; }
+.btn:disabled { opacity: .6; cursor: wait; }
+details summary { cursor: pointer; }
+.field input[type=file] { padding: 8px; }

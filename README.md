@@ -18,9 +18,9 @@ Saf HTML/CSS/JS ile yazılmış, derleme gerektirmeyen statik bir blog. GitHub P
 
 1. Sitede sağ üstteki **Write** butonuna tıkla.
 2. Başlık, özet, kategori, kapak ve içeriği (Markdown) yaz; sağda önizlemeyi gör.
-3. **Copy code** ile kodu kopyala.
-4. `js/posts.js` dosyasını aç ve `const POSTS = [` satırının hemen altına yapıştır.
-5. Kaydet → commit → push. GitHub Pages birkaç dakika içinde güncellenir.
+3. (İlk seferde) sayfanın altındaki **Author login** linkinden giriş anahtarınla giriş yap.
+4. **Yayınla** butonuna bas — yazı otomatik olarak GitHub'a kaydedilir ve 1–2 dakikada sitede görünür.
+
 
 Bir yazıyı ana sayfada büyük göstermek için ona `featured: true` ekle (diğerinden kaldır).
 
