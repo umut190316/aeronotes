@@ -30,7 +30,12 @@
       headers: { Accept: "application/vnd.github+json", Authorization: "Bearer " + auth.get(), ...(opts.headers || {}) }
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || "GitHub error " + res.status);
+    if (!res.ok) {
+      const m = data.message || "GitHub error " + res.status;
+      if (/not accessible by personal access token/i.test(m))
+        throw new Error("Anahtarın aeronotes deposuna yazma izni yok. GitHub'da anahtarı düzenle: Repository access → aeronotes seçili olsun, Contents → Read and write.");
+      throw new Error(m);
+    }
     return data;
   }
   const b64decode = (s) => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g, "")), (c) => c.charCodeAt(0)));
