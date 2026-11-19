@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Write · AeroNotes</title>
+  <meta name="description" content="AeroNotes — a student blog on aerospace and space by Umutcan Bakırcı.">
+  <meta name="author" content="Umutcan Bakırcı">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="write">
+<header class="site-header" id="site-header"></header>
+<main class="container">
+  <div class="page-head">
+    <h1>Write a new article</h1>
+    <p>Fill in the form, check the preview, then copy the generated code to the top of the <code>POSTS</code> list in <code>js/posts.js</code>.</p>
+  </div>
+  <div class="write">
+    <form id="writeForm" autocomplete="off" onsubmit="return false">
+      <div class="field"><label for="title">Title</label><input id="title" name="title" placeholder="e.g. Hypersonic Flight: Challenges Ahead"></div>
+      <div class="field"><label for="excerpt">Short summary</label><input id="excerpt" name="excerpt" placeholder="One sentence shown on cards"></div>
+      <div class="row">
+        <div class="field"><label for="category">Category</label><select id="category" name="category"></select></div>
+        <div class="field"><label for="date">Date</label><input id="date" name="date" type="date"></div>
+      </div>
+      <div class="field">
+        <label for="cover">Cover image</label>
+        <select id="cover" name="cover">
+          <option value="assets/wing.svg">Wing (aviation)</option>
+          <option value="assets/rocket.svg">Rocket launch</option>
+          <option value="assets/engine.svg">Jet engine</option>
+          <option value="assets/satellite.svg">Satellite</option>
+          <option value="assets/airfoil.svg">Airfoil / aerodynamics</option>
+        </select>
+        <span class="hint">Want your own photo? Put it in <code>assets/</code> and change the <code>cover</code> path in the code.</span>
+      </div>
+      <div class="field">
+        <label for="content">Content (Markdown)</label>
+        <textarea id="content" name="content" placeholder="Write your article…&#10;&#10;## A section heading&#10;&#10;A paragraph with **bold** and *italic* text.&#10;&#10;- a list item&#10;- another item"></textarea>
+      </div>
+      <div class="output">
+        <div class="section-head" style="margin-bottom:8px">
+          <strong>Generated code</strong>
+          <span style="display:flex;gap:8px">
+            <a class="btn ghost" id="ghLink" target="_blank" rel="noopener" hidden>Open posts.js on GitHub</a>
+            <button class="btn" type="button" id="copyBtn">Copy code</button>
+          </span>
+        </div>
+        <pre id="code"></pre>
+      </div>
+    </form>
+    <div>
+      <div class="preview">
+        <div class="preview-title" id="pvTitle"></div>
+        <div class="prose" id="pvBody"></div>
+      </div>
+    </div>
+  </div>
+</main>
+<footer class="site-footer" id="site-footer"></footer>
+<script src="js/posts.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

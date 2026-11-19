@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <radialGradient id="earth" cx="0.4" cy="0.2" r="0.8">
+      <stop offset="0" stop-color="#5fa8e8"/>
+      <stop offset="0.5" stop-color="#1f5ea8"/>
+      <stop offset="1" stop-color="#0a1f45"/>
+    </radialGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3d5ea8"/>
+      <stop offset="1" stop-color="#16244a"/>
+    </linearGradient>
+    <pattern id="cells" width="14" height="14" patternUnits="userSpaceOnUse">
+      <rect width="14" height="14" fill="url(#panel)"/>
+      <path d="M14 0 L0 0 L0 14" stroke="#9fb6e6" stroke-width="1" fill="none" opacity="0.6"/>
+    </pattern>
+    <linearGradient id="bus" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8b929c"/>
+      <stop offset="0.5" stop-color="#e8ebef"/>
+      <stop offset="1" stop-color="#8b929c"/>
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="10"/></filter>
+  </defs>
+  <rect width="800" height="450" fill="#04070f"/>
+  <g fill="#fff">
+    <circle cx="60" cy="40" r="1.2"/><circle cx="140" cy="110" r="1"/><circle cx="230" cy="30" r="1.4"/>
+    <circle cx="330" cy="80" r="0.9"/><circle cx="690" cy="40" r="1.3"/><circle cx="740" cy="120" r="1"/>
+    <circle cx="610" cy="20" r="0.8"/><circle cx="90" cy="180" r="1"/><circle cx="420" cy="25" r="1.1"/>
+  </g>
+  <circle cx="380" cy="1050" r="820" fill="#7fc4ff" filter="url(#glow)" opacity="0.6"/>
+  <circle cx="380" cy="1050" r="800" fill="url(#earth)"/>
+  <g fill="#3f8a5a" opacity="0.55">
+    <path d="M120 330 q60 -30 130 -10 q40 20 20 50 q-80 10 -150 -40z"/>
+    <path d="M430 300 q80 -20 160 10 q20 30 -30 40 q-90 -5 -130 -50z"/>
+  </g>
+  <g fill="#ffffff" opacity="0.35">
+    <ellipse cx="300" cy="320" rx="90" ry="10"/><ellipse cx="560" cy="350" rx="120" ry="12"/>
+  </g>
+  <g transform="translate(560 150) rotate(-18)">
+    <rect x="-230" y="-28" width="170" height="56" fill="url(#cells)" stroke="#c9d3e6" stroke-width="2"/>
+    <rect x="60" y="-28" width="170" height="56" fill="url(#cells)" stroke="#c9d3e6" stroke-width="2"/>
+    <path d="M-60 0 L-30 0 M30 0 L60 0" stroke="#c9d3e6" stroke-width="4"/>
+    <rect x="-30" y="-40" width="60" height="80" rx="6" fill="url(#bus)"/>
+    <rect x="-30" y="-10" width="60" height="6" fill="#c9a24a"/>
+    <circle cx="0" cy="52" r="14" fill="#d9dde3" stroke="#7b828c" stroke-width="2"/>
+  </g>
+</svg>

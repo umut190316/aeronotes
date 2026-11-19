@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#34466b"/>
+      <stop offset="0.38" stop-color="#7a7fa3"/>
+      <stop offset="0.62" stop-color="#d8a07c"/>
+      <stop offset="0.75" stop-color="#f0b77f"/>
+      <stop offset="1" stop-color="#8f8aa6"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="0.28" cy="0.68" r="0.45">
+      <stop offset="0" stop-color="#ffe2b0" stop-opacity="0.95"/>
+      <stop offset="0.35" stop-color="#f6b880" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#f6b880" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="wingTop" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d9dee6"/>
+      <stop offset="0.55" stop-color="#9aa3b2"/>
+      <stop offset="1" stop-color="#4f5868"/>
+    </linearGradient>
+    <linearGradient id="winglet" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5b6576"/>
+      <stop offset="1" stop-color="#2f3644"/>
+    </linearGradient>
+    <linearGradient id="cloud" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e9dbe0"/>
+      <stop offset="1" stop-color="#8b88a3"/>
+    </linearGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="6"/></filter>
+  </defs>
+  <rect width="1200" height="600" fill="url(#sky)"/>
+  <rect width="1200" height="600" fill="url(#sun)"/>
+  <g filter="url(#blur)" fill="url(#cloud)" opacity="0.9">
+    <ellipse cx="120" cy="520" rx="260" ry="70"/>
+    <ellipse cx="420" cy="540" rx="300" ry="80"/>
+    <ellipse cx="760" cy="530" rx="320" ry="85"/>
+    <ellipse cx="1080" cy="520" rx="280" ry="75"/>
+    <ellipse cx="300" cy="470" rx="200" ry="40" opacity="0.7"/>
+    <ellipse cx="900" cy="470" rx="240" ry="45" opacity="0.7"/>
+    <ellipse cx="600" cy="600" rx="700" ry="80"/>
+  </g>
+  <!-- wing -->
+  <path d="M1200 290 L1200 470 L700 432 Q640 428 660 410 L1010 150 Z" fill="url(#wingTop)"/>
+  <path d="M660 410 Q640 428 700 432 L1200 470 L1200 492 L690 446 Q630 438 660 410 Z" fill="#3c4453"/>
+  <path d="M1010 150 L660 410" stroke="#eef1f5" stroke-width="3" opacity="0.8"/>
+  <path d="M760 360 L1200 395" stroke="#7d8697" stroke-width="2" opacity="0.6"/>
+  <path d="M860 290 L1200 330" stroke="#7d8697" stroke-width="2" opacity="0.4"/>
+  <!-- winglet -->
+  <path d="M1010 150 L1050 40 Q1060 30 1066 42 L1040 170 Z" fill="url(#winglet)"/>
+  <!-- flap track fairings -->
+  <path d="M820 440 l60 4 l-6 22 l-40 -3 z" fill="#555e6e"/>
+  <path d="M980 452 l60 4 l-6 22 l-40 -3 z" fill="#555e6e"/>
+</svg>
