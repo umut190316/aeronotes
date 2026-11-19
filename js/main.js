@@ -37,6 +37,26 @@
   const b64encodeText = (s) => { let bin = ""; new TextEncoder().encode(s).forEach((b) => (bin += String.fromCharCode(b))); return btoa(bin); };
   const fileToB64 = (file) => new Promise((ok, fail) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1]); r.onerror = fail; r.readAsDataURL(file); });
 
+  /* Password vault: the GitHub key is encrypted (PBKDF2 + AES-GCM) with the author's password
+     and published as auth.json. Only someone who knows the password can unlock it. */
+  const VAULT_ITER = 600000;
+  const bytesToB64 = (u8) => { let s = ""; u8.forEach((b) => (s += String.fromCharCode(b))); return btoa(s); };
+  const b64ToBytes = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  async function vaultKey(pw, salt, iter) {
+    const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveKey"]);
+    return crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: iter, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+  }
+  async function vaultSeal(token, pw) {
+    const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await vaultKey(pw, salt, VAULT_ITER), new TextEncoder().encode(token));
+    return { v: 1, kdf: "PBKDF2-SHA256", iter: VAULT_ITER, salt: bytesToB64(salt), iv: bytesToB64(iv), data: bytesToB64(new Uint8Array(ct)) };
+  }
+  async function vaultOpen(vault, pw) {
+    const key = await vaultKey(pw, b64ToBytes(vault.salt), vault.iter);
+    const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64ToBytes(vault.iv) }, key, b64ToBytes(vault.data));
+    return new TextDecoder().decode(pt);
+  }
+
   const sorted = POSTS.slice().sort((a, b) => b.date.localeCompare(a.date));
   const $ = (s, el = document) => el.querySelector(s);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -187,23 +207,74 @@
       $("#statWords").textContent = Math.round(POSTS.reduce((s, p) => s + p.content.split(/\s+/).length, 0) / 100) / 10 + "k";
     },
 
-    login() {
-      if (auth.on) { location.replace("write.html"); return; }
-      const f = $("#loginForm"), msg = $("#loginMsg");
-      f.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const token = f.token.value.trim();
-        if (!token) return;
-        msg.textContent = "Kontrol ediliyor…"; msg.className = "hint";
+    async login() {
+      const setupMode = new URLSearchParams(location.search).has("setup");
+      if (auth.on && !setupMode) { location.replace("write.html"); return; }
+      const say = (el, text, kind) => { el.textContent = text; el.className = "hint" + (kind ? " " + kind : ""); };
+
+      // Is a password already set? (encrypted key published as auth.json)
+      let vault = null;
+      try { const r = await fetch("auth.json?t=" + Date.now(), { cache: "no-store" }); if (r.ok) vault = await r.json(); } catch {}
+
+      const showSetup = () => {
+        $("#pwSection").hidden = true; $("#setupSection").hidden = false;
+        if (vault) { $("#setupTitle").textContent = auth.on ? "Parolayı değiştir" : "Parolayı sıfırla"; $("#backToPw").hidden = false; }
+        if (auth.on) $("#tokenField").hidden = true; // already logged in: reuse current key
+      };
+      if (!vault || setupMode) showSetup(); else { $("#pwSection").hidden = false; $("#password").focus(); }
+      $("#toSetup").addEventListener("click", (e) => { e.preventDefault(); showSetup(); });
+
+      async function checkToken(token) {
         auth.set(token);
         try {
           const repo = await gh("/repos/" + SITE.repo);
-          if (!repo.permissions || !repo.permissions.push) throw new Error("Bu anahtarın siteye yazma izni yok.");
-          location.replace("write.html");
+          if (!repo.permissions || !repo.permissions.push) throw new Error("Bu anahtarın siteye yazma izni yok (Contents: Read and write olmalı).");
         } catch (err) {
           auth.clear();
-          msg.textContent = "Giriş başarısız: " + err.message; msg.className = "hint error";
+          if (/bad credentials/i.test(err.message)) throw new Error("Anahtar geçersiz ya da süresi dolmuş.");
+          if (/not found/i.test(err.message)) throw new Error("Anahtar aeronotes deposunu göremiyor (Repository access ayarını kontrol et).");
+          throw err;
         }
+      }
+
+      // Normal login with password
+      $("#pwForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const msg = $("#pwMsg"), btn = e.submitter;
+        btn.disabled = true; say(msg, "Kontrol ediliyor…");
+        try {
+          let token;
+          try { token = await vaultOpen(vault, $("#password").value); }
+          catch { await new Promise((r) => setTimeout(r, 800)); throw new Error("Parola yanlış."); }
+          try { await checkToken(token); }
+          catch (err) { throw new Error(err.message + " \"Parolamı unuttum\" adımlarıyla yeni anahtar oluştur."); }
+          location.replace("write.html");
+        } catch (err) { say(msg, err.message, "error"); }
+        finally { btn.disabled = false; }
+      });
+
+      // First setup / reset / change password
+      $("#setupForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const f = e.target, msg = $("#setupMsg"), btn = e.submitter;
+        const token = auth.on && $("#tokenField").hidden ? auth.get() : f.token.value.trim();
+        const pw = f.newPw.value;
+        if (!token) return say(msg, "GitHub anahtarını yapıştır.", "error");
+        if (!/^(github_pat_|ghp_)/.test(token)) return say(msg, "Bu bir GitHub anahtarı gibi görünmüyor (github_pat_ ile başlamalı).", "error");
+        if (pw.length < 12 || !/[a-zçğıöşü]/.test(pw) || !/[A-ZÇĞİÖŞÜ]/.test(pw) || !/\d/.test(pw) || !/[^A-Za-z0-9çğıöşüÇĞİÖŞÜ]/.test(pw))
+          return say(msg, "Parola zayıf: en az 12 karakter, büyük harf, küçük harf, rakam ve sembol olmalı.", "error");
+        if (pw !== f.newPw2.value) return say(msg, "Parolalar aynı değil.", "error");
+        btn.disabled = true; say(msg, "Kaydediliyor…");
+        try {
+          await checkToken(token);
+          const sealed = await vaultSeal(token, pw);
+          let sha;
+          try { sha = (await gh(`/repos/${SITE.repo}/contents/auth.json`)).sha; } catch {}
+          await gh(`/repos/${SITE.repo}/contents/auth.json`, { method: "PUT", body: JSON.stringify({ message: "Update author password", content: b64encodeText(JSON.stringify(sealed, null, 2) + "\n"), ...(sha ? { sha } : {}) }) });
+          say(msg, "✓ Parola kaydedildi! Yönlendiriliyorsun…", "ok");
+          setTimeout(() => location.replace("write.html"), 1200);
+        } catch (err) { say(msg, "Kaydedilemedi: " + err.message, "error"); }
+        finally { btn.disabled = false; }
       });
     },
 
@@ -292,5 +363,5 @@
     if (pages[page]) pages[page]();
   });
 
-  window.AeroNotes = { md, ICONS };
+  window.AeroNotes = { md, ICONS, vaultSeal, vaultOpen };
 })();
