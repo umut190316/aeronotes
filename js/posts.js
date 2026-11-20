@@ -23,7 +23,7 @@ const POSTS = [
     tag: "Aerospace",
     date: "2026-11-16",
     readTime: 6,
-    cover: "assets/wing.svg",
+    cover: "assets/wing.webp",
     featured: true,
     content: `
 Every commercial airliner flies through a wide range of conditions on a single trip: a heavy climb-out, a long cruise, and a slow, high-lift approach. Yet the wingtip — the region that decides a large share of **induced drag** — is usually a fixed piece of carbon fibre designed for one compromise point. Morphing winglets try to remove that compromise.
