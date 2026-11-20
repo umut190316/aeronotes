@@ -13,7 +13,7 @@ const SITE = {
   repo: "umut190316/aeronotes" // örn: "kullaniciadi/aeronotes" — Write sayfasındaki GitHub düzenleme linki için
 };
 
-const CATEGORIES = ["Aviation", "Space", "Engines", "World News", "Sustainability", "Technology"];
+const CATEGORIES = ["Aviation", "Space", "Engines", "History", "World News", "Sustainability", "Technology"];
 
 const POSTS = [
   {
