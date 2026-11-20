@@ -119,6 +119,7 @@ async function sitemap(context) {
     { loc: origin + "/", lastmod: newest },
     { loc: origin + "/articles", lastmod: newest },
     { loc: origin + "/about" },
+    { loc: origin + "/quiz" },
     ...posts.map((p) => ({ loc: origin + postPath(p.id), lastmod: isoDate(p.updated) || isoDate(p.date), image: absUrl(origin, p.cover || ogImageOf(p)), title: p.title }))
   ];
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -167,6 +168,8 @@ export async function onRequest(context) {
       return await listingPage(context, "/", { title: SITE_NAME + " · " + SITE_TAGLINE, description: SITE_DESC, list: "#latest", limit: 6 });
     if (path === "/articles" || path === "/articles.html")
       return await listingPage(context, "/articles", { title: "All Articles · " + SITE_NAME, description: "Every AeroNotes article on aviation, space, engines, history and aerospace technology.", list: "#grid" });
+    if (path === "/quiz" || path === "/quiz.html")
+      return await listingPage(context, "/quiz", { title: "Aviation & Space Quiz · " + SITE_NAME, description: "Test your aviation and space knowledge: 10 random questions per round from a bank of more than 1,500 on airports, airlines, aircraft, space missions and aerospace history." });
     if (path === "/about" || path === "/about.html")
       return await listingPage(context, "/about", { title: "About · " + SITE_NAME, description: "About " + AUTHOR + ", the aerospace engineering student behind " + SITE_NAME + "." });
   } catch (err) {

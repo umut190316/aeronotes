@@ -383,3 +383,27 @@ img.about-avatar.photo { object-fit: cover; object-position: 40% 25%; display: b
   .brand svg { height: 18px; }
   .brand .brand-word { height: 6px; }
 }
+
+/* Quiz */
+.quiz-wrap { max-width: 760px; }
+.quiz-card { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 26px 24px; margin-bottom: 48px; box-shadow: 0 10px 30px rgba(15, 45, 82, .06); }
+.qz-intro { text-align: center; }
+.qz-intro p { max-width: 520px; margin: 10px auto; }
+.qz-big { font-size: 56px; font-weight: 800; color: var(--navy); line-height: 1.1; }
+.qz-start { margin-top: 14px; padding: 14px 34px; }
+.qz-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: space-between; }
+.qz-bar { height: 6px; background: var(--soft); border-radius: 99px; margin: 14px 0 18px; overflow: hidden; }
+.qz-bar span { display: block; height: 100%; background: var(--navy); transition: width .3s; }
+.qz-q { font-size: 22px; line-height: 1.35; margin: 0 0 18px; }
+.qz-opts { display: grid; gap: 10px; }
+.qz-opt { display: flex; align-items: center; gap: 12px; text-align: left; width: 100%; padding: 14px 16px; border: 1.5px solid var(--line); border-radius: 12px; background: #fff; font: inherit; font-size: 16px; color: var(--ink); cursor: pointer; transition: border-color .15s, background .15s; }
+.qz-opt b { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--soft); color: var(--navy); font-size: 13px; }
+.qz-opt:hover:not(:disabled) { border-color: var(--navy); }
+.qz-opt:disabled { cursor: default; }
+.qz-opt.right { border-color: #1f8a4c; background: #eaf7ef; }
+.qz-opt.right b { background: #1f8a4c; color: #fff; }
+.qz-opt.wrong { border-color: #c0392b; background: #fdecea; }
+.qz-opt.wrong b { background: #c0392b; color: #fff; }
+.qz-why { margin: 18px 0 14px; padding: 12px 14px; border-radius: 10px; background: var(--soft); line-height: 1.55; }
+.qz-why.ok b { color: #1f8a4c; } .qz-why.no b { color: #c0392b; }
+.qz-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 16px; }
