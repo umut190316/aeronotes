@@ -17,7 +17,7 @@ const SITE = {
 const CATEGORIES = ["Aviation", "Space", "Engines", "History", "Inspiring People", "World News", "Sustainability", "Technology"];
 
 // Yayın takvimi: Yönetim > Takvim sekmesinden düzenlenir.
-const SCHEDULE = [];
+const SCHEDULE = [{"date":"2026-11-23","title":"How Does Turbojet Engine Work ?","category":"Engines","note":"We are going to learn the principles of a Turbojet Engine."}];
 
 const POSTS = [
   {
