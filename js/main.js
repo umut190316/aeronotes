@@ -245,7 +245,7 @@
     const unwrap = (el) => el.replaceWith(...el.childNodes);
     const walk = (node) => {
       [...node.childNodes].forEach((el) => {
-        if (el.nodeType === 3) return;
+        if (el.nodeType === 3) { if (el.nodeValue.includes("\u200B")) { el.nodeValue = el.nodeValue.replace(/\u200B/g, ""); if (!el.nodeValue) el.remove(); } return; }
         if (el.nodeType !== 1) { el.remove(); return; }
         const tag = el.tagName;
         if (DROP.has(tag)) { el.remove(); return; }
@@ -274,6 +274,7 @@
           if (el.style.fontStyle === "italic") span.style.fontStyle = "italic";
           if (/underline/.test(el.style.textDecoration || el.style.textDecorationLine || "")) span.style.textDecoration = "underline";
           span.append(...el.childNodes); el.replaceWith(span); walk(span);
+          if (!span.textContent && !span.querySelector("img,video,iframe,br")) { span.remove(); return; }
           if (!span.getAttribute("style")) unwrap(span);
           return;
         }
@@ -641,10 +642,9 @@
       // ---- font & size like Word: applies to the selected text, or to what you type next
       const fontSel = $("#fontSel"), sizeSel = $("#sizeSel");
       fontSel.innerHTML = Object.entries(FONTS).filter(([, v]) => !v.hidden).map(([k, v]) => `<option value="${k}" style="font-family:${v.family}">${v.label.replace(" (varsayılan)", "")}</option>`).join("");
-      sizeSel.innerHTML = FONT_SIZES.map((n) => `<option value="${n}">${n}</option>`).join("");
-      sizeSel.value = "17";
+
       Object.keys(FONTS).filter((k) => !FONTS[k].hidden).forEach(loadFont);
-      let pendingSize = null;
+      let pendingSize = null, holdSync = false; // holdSync: keep menus showing the chosen value until you type or click
       const fixSizes = () => {
         if (!pendingSize) return;
         ed.querySelectorAll('span[style*="xxx-large"], font[size="7"]').forEach((el) => {
@@ -653,30 +653,51 @@
         });
       };
       const withCSS = (fn) => { try { document.execCommand("styleWithCSS", false, true); fn(); } finally { try { document.execCommand("styleWithCSS", false, false); } catch {} } };
-      [fontSel, sizeSel].forEach((s) => s.addEventListener("mousedown", () => { const sel = getSelection(); if (sel.rangeCount && ed.contains(sel.anchorNode)) savedRange = sel.getRangeAt(0).cloneRange(); }));
+      [fontSel, sizeSel].forEach((s) => s.addEventListener("pointerdown", () => { const sel = getSelection(); if (sel.rangeCount && ed.contains(sel.anchorNode)) savedRange = sel.getRangeAt(0).cloneRange(); }));
+      // No text selected: drop an invisible styled marker at the cursor so what you type next goes inside it
+      function styleAtCaret(prop, value) {
+        restore();
+        const sel = getSelection(); if (!sel.rangeCount) return false;
+        const r = sel.getRangeAt(0); if (!r.collapsed) return false;
+        let host = r.startContainer.nodeType === 1 ? r.startContainer : r.startContainer.parentElement;
+        // reuse an empty marker that is already here instead of stacking new ones
+        if (host && host.tagName === "SPAN" && host.textContent === "\u200B") { host.style[prop] = value; changed(); return true; }
+        const span = document.createElement("span"); span.style[prop] = value;
+        const t = document.createTextNode("\u200B"); span.appendChild(t);
+        r.insertNode(span);
+        const nr = document.createRange(); nr.setStart(t, 1); nr.collapse(true);
+        sel.removeAllRanges(); sel.addRange(nr); savedRange = nr.cloneRange();
+        changed(); return true;
+      }
+      let lastApply = "";
       fontSel.addEventListener("change", () => {
-        restore();
-        withCSS(() => document.execCommand("fontName", false, FONTS[fontSel.value].family));
-        changed();
+        if (lastApply === "font:" + fontSel.value) return;
+        lastApply = "font:" + fontSel.value; setTimeout(() => (lastApply = ""), 400);
+        holdSync = true;
+        const fam = FONTS[fontSel.value].family;
+        if (!styleAtCaret("fontFamily", fam)) { withCSS(() => document.execCommand("fontName", false, fam)); changed(); }
       });
+      sizeSel.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); sizeSel.dispatchEvent(new Event("change")); } });
       sizeSel.addEventListener("change", () => {
-        pendingSize = Number(sizeSel.value);
-        restore();
-        withCSS(() => document.execCommand("fontSize", false, "7"));
-        fixSizes(); changed();
+        const n = Math.round(Number(sizeSel.value));
+        if (!n) return;
+        pendingSize = Math.min(100, Math.max(8, n)); sizeSel.value = pendingSize; holdSync = true;
+        if (lastApply === "size:" + pendingSize) return; // the box fires twice (Enter + leaving the box)
+        lastApply = "size:" + pendingSize; setTimeout(() => (lastApply = ""), 400);
+        if (!styleAtCaret("fontSize", pendingSize + "px")) { withCSS(() => document.execCommand("fontSize", false, "7")); fixSizes(); changed(); }
       });
-      ed.addEventListener("input", fixSizes);
+      ed.addEventListener("input", (e) => { fixSizes(); if (e.isTrusted) holdSync = false; });
+      ed.addEventListener("mousedown", () => { holdSync = false; });
       // show the font/size where the cursor is
       const firstFamily = (fam) => String(fam).split(",")[0].replace(/["']/g, "").trim().toLowerCase();
       function syncSelects() {
+        if (holdSync) return;
         const sel = getSelection(); if (!sel.rangeCount || !ed.contains(sel.anchorNode)) return;
         let el = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
         const cs = getComputedStyle(el);
         const key = Object.keys(FONTS).find((k) => !FONTS[k].hidden && firstFamily(FONTS[k].family) === firstFamily(cs.fontFamily));
         if (key) fontSel.value = key;
-        const px = String(Math.round(parseFloat(cs.fontSize)));
-        if (!sizeSel.querySelector(`option[value="${px}"]`)) sizeSel.insertAdjacentHTML("beforeend", `<option value="${px}">${px}</option>`);
-        sizeSel.value = px;
+        if (document.activeElement !== sizeSel) sizeSel.value = String(Math.round(parseFloat(cs.fontSize)));
       }
       document.addEventListener("selectionchange", () => { if (document.activeElement === ed) syncSelects(); });
       // older articles may have one font for the whole text

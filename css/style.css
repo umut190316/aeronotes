@@ -359,4 +359,4 @@ img.about-avatar.photo { object-fit: cover; object-position: 40% 25%; display: b
 .hero img.avatar.photo { position: static; inset: auto; width: 24px; height: 24px; transform: none; }
 .tb-select { font: inherit; font-size: 14px; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 5px 6px; color: var(--ink); cursor: pointer; }
 .tb-font { max-width: 170px; }
-.tb-size { width: 70px; }
+.tb-size { width: 72px; text-align: center; }
