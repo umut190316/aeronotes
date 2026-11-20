@@ -476,7 +476,20 @@
     about() {
       if (SITE.avatar) $("#aboutAvatar").outerHTML = authorAvatar("about-avatar");
       else $("#aboutAvatar").textContent = initials(SITE.author);
+      if (SITE.linkedin) $(".about-links").insertAdjacentHTML("beforeend", `<a class="btn btn-li" href="${esc(SITE.linkedin)}" target="_blank" rel="noopener">Follow on LinkedIn</a>`);
       $("#statPosts").textContent = POSTS.length;
+      const TOPIC_INFO = {
+        Aviation: "how aircraft fly and how they are getting more efficient",
+        Space: "launch vehicles, satellites and mission design",
+        Engines: "jet and rocket engines and how they work",
+        History: "the people, aircraft and missions that shaped aerospace",
+        "Inspiring People": "stories and interviews with people building the future of flight",
+        "World News": "the latest aviation and space news from around the world",
+        Sustainability: "fuels, efficiency and the road to cleaner flight",
+        Technology: "materials, avionics and tools of the trade"
+      };
+      if ($("#topicList")) $("#topicList").innerHTML = CATEGORIES.map((c) =>
+        `<li><a href="articles.html?category=${encodeURIComponent(c)}"><strong>${esc(c)}</strong></a>${TOPIC_INFO[c] ? ": " + esc(TOPIC_INFO[c]) : ""}</li>`).join("");
       $("#statCats").textContent = new Set(POSTS.map((p) => p.category)).size;
       $("#statWords").textContent = Math.round(POSTS.reduce((s, p) => s + p.content.split(/\s+/).length, 0) / 100) / 10 + "k";
     },
