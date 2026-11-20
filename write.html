@@ -35,10 +35,12 @@
       <div class="ed-label">Kapak</div>
       <div class="ed-covers" id="covers"></div>
 
-      <div class="ed-label">Yazı tipi</div>
-      <div class="ed-chips ed-fonts" id="fonts"></div>
+      <input type="hidden" name="font" value="default">
 
       <div class="ed-toolbar" id="toolbar" aria-label="Biçimlendirme">
+        <select id="fontSel" class="tb-select tb-font" title="Yazı tipi" aria-label="Yazı tipi"></select>
+        <select id="sizeSel" class="tb-select tb-size" title="Yazı boyutu" aria-label="Yazı boyutu"></select>
+        <span class="tb-sep"></span>
         <button type="button" data-md="h" title="Ara başlık">Başlık</button>
         <button type="button" data-md="b" title="Kalın (Ctrl+B)"><b>K</b></button>
         <button type="button" data-md="i" title="İtalik (Ctrl+I)"><i>İ</i></button>

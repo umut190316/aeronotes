@@ -67,6 +67,7 @@
   /* Fonts the author can pick per article */
   // The well-known font is used when the reader has it; otherwise a free look-alike from Google Fonts
   // is loaded, so phones and Macs see the same style.
+  const FONT_SIZES = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 22, 24, 26, 28, 32, 36, 40, 44, 48, 54, 60, 66, 72, 80, 90, 100];
   const GF = (name) => name.replace(/ /g, "+") + ":ital,wght@0,400;0,700;1,400;1,700";
   const FONTS = {
     default: { label: "Inter (varsayılan)", family: "'Inter', system-ui, sans-serif" },
@@ -236,6 +237,7 @@
     P: [], H2: [], H3: [], STRONG: [], B: [], EM: [], I: [], U: [], A: ["href"], UL: [], OL: [], LI: [],
     BLOCKQUOTE: [], BR: [], FIGURE: [], FIGCAPTION: [], IMG: ["src", "alt"], VIDEO: ["src"], IFRAME: ["src"], CODE: []
   };
+  const firstFontName = (fam) => String(fam).split(",")[0].replace(/["']/g, "").trim().toLowerCase();
   const DROP = new Set(["SCRIPT", "STYLE", "OBJECT", "EMBED", "FORM", "INPUT", "BUTTON", "SELECT", "TEXTAREA", "LINK", "META"]);
   // keepBlob: preview mode (show freshly uploaded files from memory)
   function sanitize(html, keepBlob = false) {
@@ -256,6 +258,24 @@
           walk(el);
           if (el.classList.contains("media-block")) { unwrap(el); return; }
           const p = doc.createElement("p"); p.append(...el.childNodes); el.replaceWith(p); return;
+        }
+        if (tag === "SPAN" || tag === "FONT") {
+          // keep only a known font and a size between 8 and 100 px
+          const fam = el.style.fontFamily || el.getAttribute("face") || "";
+          const size = el.style.fontSize || "";
+          const span = doc.createElement("span");
+          if (fam) {
+            const k = Object.keys(FONTS).find((key) => firstFontName(FONTS[key].family) === firstFontName(fam));
+            if (k) span.style.fontFamily = FONTS[k].family;
+          }
+          const px = /^\d+(\.\d+)?px$/.test(size) ? Math.round(parseFloat(size)) : 0;
+          if (px >= 8 && px <= 100) span.style.fontSize = px + "px";
+          if (el.style.fontWeight === "bold" || Number(el.style.fontWeight) >= 600) span.style.fontWeight = "700";
+          if (el.style.fontStyle === "italic") span.style.fontStyle = "italic";
+          if (/underline/.test(el.style.textDecoration || el.style.textDecorationLine || "")) span.style.textDecoration = "underline";
+          span.append(...el.childNodes); el.replaceWith(span); walk(span);
+          if (!span.getAttribute("style")) unwrap(span);
+          return;
         }
         if (!(tag in ALLOWED)) { walk(el); unwrap(el); return; }
         const path = el.getAttribute("data-path");
@@ -288,7 +308,12 @@
     walk(doc.body);
     return doc.body.innerHTML.replace(/(<p><br><\/p>\s*)+$/g, "").trim();
   }
-  const renderContent = (p) => (p.format === "html" ? sanitize(p.content) : md(p.content));
+  const renderContent = (p) => {
+    if (p.format !== "html") return md(p.content);
+    const html = sanitize(p.content);
+    Object.keys(FONTS).forEach((k) => { if (k !== "default" && html.toLowerCase().includes(firstFontName(FONTS[k].family))) loadFont(k); });
+    return html;
+  };
 
   /* ---------- Comments ---------- */
   const timeAgo = (iso) => {
@@ -613,11 +638,49 @@
       $("#videoUrlBtn").addEventListener("click", addVideoUrl);
       $("#videoUrl").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addVideoUrl(); } });
 
-      // ---- font choice (applies to the whole article)
-      $("#fonts").innerHTML = Object.entries(FONTS).filter(([, v]) => !v.hidden).map(([k, v], i) => `<label><input type="radio" name="font" value="${k}" ${i ? "" : "checked"}><span style="font-family:${v.family}">${v.label}</span></label>`).join("");
+      // ---- font & size like Word: applies to the selected text, or to what you type next
+      const fontSel = $("#fontSel"), sizeSel = $("#sizeSel");
+      fontSel.innerHTML = Object.entries(FONTS).filter(([, v]) => !v.hidden).map(([k, v]) => `<option value="${k}" style="font-family:${v.family}">${v.label.replace(" (varsayılan)", "")}</option>`).join("");
+      sizeSel.innerHTML = FONT_SIZES.map((n) => `<option value="${n}">${n}</option>`).join("");
+      sizeSel.value = "17";
       Object.keys(FONTS).filter((k) => !FONTS[k].hidden).forEach(loadFont);
-      const applyFont = () => { const fam = FONTS[f.font.value].family; ed.style.fontFamily = fam; f.title.style.fontFamily = fam; };
-      $("#fonts").addEventListener("change", applyFont);
+      let pendingSize = null;
+      const fixSizes = () => {
+        if (!pendingSize) return;
+        ed.querySelectorAll('span[style*="xxx-large"], font[size="7"]').forEach((el) => {
+          if (el.tagName === "FONT") { const s = document.createElement("span"); s.append(...el.childNodes); el.replaceWith(s); el = s; }
+          el.style.fontSize = pendingSize + "px";
+        });
+      };
+      const withCSS = (fn) => { try { document.execCommand("styleWithCSS", false, true); fn(); } finally { try { document.execCommand("styleWithCSS", false, false); } catch {} } };
+      [fontSel, sizeSel].forEach((s) => s.addEventListener("mousedown", () => { const sel = getSelection(); if (sel.rangeCount && ed.contains(sel.anchorNode)) savedRange = sel.getRangeAt(0).cloneRange(); }));
+      fontSel.addEventListener("change", () => {
+        restore();
+        withCSS(() => document.execCommand("fontName", false, FONTS[fontSel.value].family));
+        changed();
+      });
+      sizeSel.addEventListener("change", () => {
+        pendingSize = Number(sizeSel.value);
+        restore();
+        withCSS(() => document.execCommand("fontSize", false, "7"));
+        fixSizes(); changed();
+      });
+      ed.addEventListener("input", fixSizes);
+      // show the font/size where the cursor is
+      const firstFamily = (fam) => String(fam).split(",")[0].replace(/["']/g, "").trim().toLowerCase();
+      function syncSelects() {
+        const sel = getSelection(); if (!sel.rangeCount || !ed.contains(sel.anchorNode)) return;
+        let el = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
+        const cs = getComputedStyle(el);
+        const key = Object.keys(FONTS).find((k) => !FONTS[k].hidden && firstFamily(FONTS[k].family) === firstFamily(cs.fontFamily));
+        if (key) fontSel.value = key;
+        const px = String(Math.round(parseFloat(cs.fontSize)));
+        if (!sizeSel.querySelector(`option[value="${px}"]`)) sizeSel.insertAdjacentHTML("beforeend", `<option value="${px}">${px}</option>`);
+        sizeSel.value = px;
+      }
+      document.addEventListener("selectionchange", () => { if (document.activeElement === ed) syncSelects(); });
+      // older articles may have one font for the whole text
+      const applyFont = () => { const k = FONTS[f.font.value] ? f.font.value : "default"; loadFont(k); ed.style.fontFamily = FONTS[k].family; };
 
       // ---- helpers
       const textOf = () => ed.innerText.replace(/\s+/g, " ").trim();
@@ -654,7 +717,6 @@
         document.title = "Düzenle · " + SITE.name;
         f.title.value = editing.title; f.excerpt.value = editing.excerpt || ""; f.date.value = editing.date;
         f.category.value = editing.category; f.cover.value = editing.cover;
-        if (FONTS[editing.font] && FONTS[editing.font].hidden) { const v = FONTS[editing.font]; loadFont(editing.font); $("#fonts").insertAdjacentHTML("beforeend", `<label><input type="radio" name="font" value="${editing.font}"><span style="font-family:${v.family}">${v.label}</span></label>`); }
         f.font.value = FONTS[editing.font] ? editing.font : "default";
         ed.innerHTML = toEditorHTML(editing);
         $("#publishBtn").textContent = "Kaydet";
@@ -668,7 +730,7 @@
       $("#previewBtn").addEventListener("click", () => {
         if (!$("#previewPane").hidden) { $("#previewPane").hidden = true; $("#editPane").hidden = false; $("#previewBtn").textContent = "Önizle"; return; }
         const cover = f.cover.value === "__upload" ? uploadURL : f.cover.value;
-        const post = fieldsFrom(cover), fam = FONTS[f.font.value].family;
+        const post = fieldsFrom(cover), fam = (FONTS[f.font.value] || FONTS.default).family;
         $("#previewPane").innerHTML = `<span class="chip">${esc(post.category)}</span><h1 style="font-family:${fam}">${esc(post.title)}</h1>${meta(post, true)}
           ${cover ? `<div class="pv-cover"><img src="${esc(cover)}" alt=""></div>` : ""}<div class="prose" style="font-family:${fam}">${sanitize(ed.innerHTML, true) || '<p class="hint">Henüz içerik yok.</p>'}</div>`;
         $("#previewPane").hidden = false; $("#editPane").hidden = true; $("#previewBtn").textContent = "Düzenle";
