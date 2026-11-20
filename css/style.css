@@ -354,6 +354,6 @@ details summary { cursor: pointer; }
 #editor p { margin: 0 0 14px; }
 .ed-toolbar button.on { background: #dbe4f3; color: var(--navy); }
 .prose u { text-underline-offset: 3px; }
-img.avatar.photo { object-fit: cover; padding: 0; }
-img.about-avatar.photo { object-fit: cover; object-position: center 30%; display: block; }
+img.avatar.photo { object-fit: cover; object-position: 40% 25%; padding: 0; }
+img.about-avatar.photo { object-fit: cover; object-position: 40% 25%; display: block; }
 .hero img.avatar.photo { position: static; inset: auto; width: 24px; height: 24px; transform: none; }
