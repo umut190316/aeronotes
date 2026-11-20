@@ -394,10 +394,42 @@
   const pages = {
     home() {
       const featured = sorted.find((p) => p.featured) || sorted[0];
-      $("#hero").innerHTML = `<a class="hero" href="${postUrl(featured.id)}">
-        <img src="${esc(featured.cover)}" alt="${esc(featured.title)}">
-        <div class="hero-body"><span class="chip">${esc(featured.tag || featured.category)}</span>
-        <h1>${esc(featured.title)}</h1><p>${esc(featured.excerpt)}</p>${meta(featured, true)}</div></a>`;
+      const slides = [featured, ...sorted.filter((p) => p !== featured)].slice(0, 6);
+      const slide = (p, i) => `<a class="hero" href="${postUrl(p.id)}" aria-roledescription="slide" aria-label="${i + 1} of ${slides.length}">
+        <img src="${esc(p.cover)}" alt="${esc(p.title)}" ${i ? 'loading="lazy"' : ""}>
+        <div class="hero-body"><span class="chip">${esc(p.tag || p.category)}</span>
+        <h1>${esc(p.title)}</h1><p>${esc(p.excerpt)}</p>${meta(p, true)}</div></a>`;
+      $("#hero").innerHTML = `<div class="hero-slider" aria-roledescription="carousel">
+        <div class="hero-track" id="heroTrack">${slides.map(slide).join("")}</div>
+        ${slides.length > 1 ? `<button class="hero-nav prev" aria-label="Previous article">${ICONS.arrowLeft}</button><button class="hero-nav next" aria-label="Next article">${ICONS.arrow}</button>
+        <div class="hero-dots">${slides.map((_, i) => `<button aria-label="Article ${i + 1}" data-i="${i}"></button>`).join("")}</div>` : ""}</div>`;
+      if (slides.length > 1) {
+        const track = $("#heroTrack"), dots = [...document.querySelectorAll(".hero-dots button")];
+        const cur = () => Math.round(track.scrollLeft / track.clientWidth);
+        const go = (i) => track.scrollTo({ left: ((i + slides.length) % slides.length) * track.clientWidth, behavior: "smooth" });
+        const mark = () => dots.forEach((d, i) => d.classList.toggle("on", i === cur()));
+        track.addEventListener("scroll", () => requestAnimationFrame(mark), { passive: true }); mark();
+        $(".hero-nav.prev").onclick = () => { go(cur() - 1); stop(); };
+        $(".hero-nav.next").onclick = () => { go(cur() + 1); stop(); };
+        dots.forEach((d) => (d.onclick = () => { go(+d.dataset.i); stop(); }));
+        let timer = matchMedia("(prefers-reduced-motion: reduce)").matches ? null : setInterval(() => go(cur() + 1), 7000);
+        const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
+        ["pointerdown", "touchstart", "wheel"].forEach((ev) => track.addEventListener(ev, stop, { passive: true }));
+      }
+      // Coming up: planned articles from SCHEDULE (past dates and already-published titles are hidden)
+      const today = new Date().toISOString().slice(0, 10);
+      const plan = (typeof SCHEDULE !== "undefined" ? SCHEDULE : [])
+        .filter((s) => s.date >= today && !POSTS.some((p) => p.title.trim().toLowerCase() === String(s.title).trim().toLowerCase()))
+        .sort((a, b) => a.date.localeCompare(b.date)).slice(0, 8);
+      if (plan.length && $("#upcoming")) {
+        $("#upcomingWrap").hidden = false;
+        $("#upcoming").innerHTML = plan.map((s) => {
+          const d = new Date(s.date + "T00:00:00");
+          return `<div class="up-item${s.date === today ? " today" : ""}">
+            <div class="up-date"><b>${d.getDate()}</b><span>${d.toLocaleDateString("en-US", { month: "short" })}</span><small>${s.date === today ? "Today" : d.toLocaleDateString("en-US", { weekday: "short" })}</small></div>
+            <div class="up-body">${s.category ? `<span class="chip">${esc(s.category)}</span>` : ""}<b>${esc(s.title)}</b>${s.note ? `<p>${esc(s.note)}</p>` : ""}</div></div>`;
+        }).join("");
+      }
       if ($("#follow")) $("#follow").innerHTML = followBox();
       $("#categories").innerHTML = CATEGORIES.map((c) => {
         const n = POSTS.filter((p) => p.category === c).length;
@@ -937,6 +969,7 @@
           return;
         }
         if (tab === "security") { drawSecurity(); return; }
+        if (tab === "schedule") { drawSchedule(); return; }
         if (!allComments) { list.innerHTML = '<p class="hint">Yükleniyor…</p>'; return; }
         const items = allComments.filter((c) => c.status === tab);
         list.innerHTML = items.length ? items.map((c) => `<div class="c-item ${c.status}" data-cid="${c.id}">
@@ -945,6 +978,63 @@
             <p>${esc(c.text).replace(/\n/g, "<br>")}</p>
             <div class="c-actions">${c.status === "pending" ? '<button class="btn" data-act="approve">✓ Onayla</button>' : ""}<button class="btn danger" data-act="delc">🗑 Sil</button></div>
           </div>`).join("") : `<p class="hint">${tab === "pending" ? "Bekleyen yorum yok 🎉" : "Henüz yayında yorum yok."}</p>`;
+      }
+
+      // ---- Publishing calendar (SCHEDULE line in js/posts.js)
+      async function loadSchedule() {
+        const cur = await gh(`/repos/${SITE.repo}/contents/js/posts.js`);
+        const text = b64decode(cur.content);
+        const m = text.match(/^const SCHEDULE = (.*);$/m);
+        return { sha: cur.sha, text, list: m ? JSON.parse(m[1]) : [] };
+      }
+      async function saveSchedule(remote, list, message) {
+        list.sort((a, b) => a.date.localeCompare(b.date));
+        const line = "const SCHEDULE = " + JSON.stringify(list) + ";";
+        const text = /^const SCHEDULE = .*;$/m.test(remote.text)
+          ? remote.text.replace(/^const SCHEDULE = .*;$/m, () => line)
+          : remote.text.replace(/const POSTS = \[\r?\n/, (m) => line + "\n\n" + m);
+        await gh(`/repos/${SITE.repo}/contents/js/posts.js`, { method: "PUT", body: JSON.stringify({ message, content: b64encodeText(text), sha: remote.sha }) });
+      }
+      async function drawSchedule() {
+        list.innerHTML = '<p class="hint">Yükleniyor…</p>';
+        let remote;
+        try { remote = await loadSchedule(); } catch (err) { list.innerHTML = `<p class="hint error">Takvim yüklenemedi: ${esc(err.message)}</p>`; return; }
+        if (tab !== "schedule") return;
+        const today = new Date().toISOString().slice(0, 10);
+        const items = remote.list.slice().sort((a, b) => a.date.localeCompare(b.date));
+        list.innerHTML = `<div class="c-item sec"><b>Yeni plan ekle</b>
+            <p class="hint">Ana sayfadaki "Coming Up" bölümünde tarihiyle görünür. Tarihi geçince ya da aynı başlıkta yazı yayınlayınca kendiliğinden kaybolur.</p>
+            <form id="schForm" class="sch-form">
+              <div class="field"><label>Tarih</label><input type="date" name="date" min="${today}" required></div>
+              <div class="field"><label>Başlık</label><input type="text" name="title" maxlength="120" placeholder="Örn: How the Jet Engine Changed Everything" required></div>
+              <div class="field"><label>Kategori</label><select name="category"><option value="">(yok)</option>${CATEGORIES.map((c) => `<option>${esc(c)}</option>`).join("")}</select></div>
+              <div class="field"><label>Kısa not (isteğe bağlı)</label><input type="text" name="note" maxlength="160" placeholder="Örn: An interview with a test pilot"></div>
+              <button class="btn" type="submit">Takvime ekle</button>
+            </form></div>
+          ${items.length ? items.map((s, i) => `<div class="c-item${s.date < today ? " past" : ""}" data-si="${i}">
+              <div class="c-head"><b>${esc(s.title)}</b><span class="hint">${formatDate(s.date)}${s.date < today ? " · geçti" : ""}</span></div>
+              ${s.category || s.note ? `<p class="hint">${esc([s.category, s.note].filter(Boolean).join(" · "))}</p>` : ""}
+              <div class="c-actions"><button class="btn danger" data-act="delsch">🗑 Sil</button></div></div>`).join("") : '<p class="hint">Takvimde henüz plan yok.</p>'}`;
+        $("#schForm").onsubmit = async (e) => {
+          e.preventDefault();
+          const f = e.target, btn = f.querySelector("button"); btn.disabled = true; say("Kaydediliyor…");
+          try {
+            const r = await loadSchedule();
+            r.list.push({ date: f.date.value, title: f.title.value.trim(), category: f.category.value || undefined, note: f.note.value.trim() || undefined });
+            await saveSchedule(r, r.list, "Schedule: " + f.title.value.trim());
+            say("✓ Takvime eklendi. 1–2 dakika içinde ana sayfada görünür.", "ok"); drawSchedule();
+          } catch (err) { say("Olmadı: " + esc(err.message), "error"); btn.disabled = false; }
+        };
+        list.querySelectorAll('[data-act="delsch"]').forEach((b) => (b.onclick = async () => {
+          const s = items[+b.closest("[data-si]").dataset.si];
+          if (!confirm(`"${s.title}" planını silmek istediğine emin misin?`)) return;
+          b.disabled = true;
+          try {
+            const r = await loadSchedule();
+            await saveSchedule(r, r.list.filter((x) => !(x.date === s.date && x.title === s.title)), "Unschedule: " + s.title);
+            say("✓ Silindi.", "ok"); drawSchedule();
+          } catch (err) { say("Olmadı: " + esc(err.message), "error"); b.disabled = false; }
+        }));
       }
 
       async function drawSecurity() {

@@ -16,6 +16,9 @@ const SITE = {
 
 const CATEGORIES = ["Aviation", "Space", "Engines", "History", "Inspiring People", "World News", "Sustainability", "Technology"];
 
+// Yayın takvimi: Yönetim > Takvim sekmesinden düzenlenir.
+const SCHEDULE = [];
+
 const POSTS = [
   {
     id: "morphing-winglets",
