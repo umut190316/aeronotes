@@ -9,6 +9,7 @@ const SITE = {
   name: "AeroNotes",
   tagline: "A Student Blog on Aerospace & Space",
   author: "Umutcan Bakırcı",
+  avatar: "", // profil fotoğrafı, örn: "assets/profile.jpg"
   repo: "umut190316/aeronotes" // örn: "kullaniciadi/aeronotes" — Write sayfasındaki GitHub düzenleme linki için
 };
 

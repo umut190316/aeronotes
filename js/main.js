@@ -131,9 +131,10 @@
       .join("\n");
   }
 
+  const authorAvatar = (cls = "avatar") => SITE.avatar ? `<img class="${cls} photo" src="${esc(SITE.avatar)}" alt="${esc(SITE.author)}">` : `<span class="${cls}">${initials(SITE.author)}</span>`;
   function meta(p, avatar) {
     return `<div class="meta">
-      <span class="author">${avatar ? `<span class="avatar">${initials(SITE.author)}</span>` : ICONS.user}${esc(SITE.author)}</span>
+      <span class="author">${avatar ? authorAvatar() : ICONS.user}${esc(SITE.author)}</span>
       <span class="dot">·</span><span>${formatDate(p.date)}</span>
       <span class="dot">·</span><span>${p.readTime} min read</span></div>`;
   }
@@ -211,6 +212,65 @@
     const text = remote.prefix + posts.map(postToCode).join("\n") + "\n];\n";
     await gh(`/repos/${SITE.repo}/contents/js/posts.js`, { method: "PUT", body: JSON.stringify({ message, content: b64encodeText(text), sha: remote.sha }) });
   }
+
+  /* Articles written in the visual editor are stored as HTML. Only a safe set of tags is kept. */
+  const ALLOWED = {
+    P: [], H2: [], H3: [], STRONG: [], B: [], EM: [], I: [], U: [], A: ["href"], UL: [], OL: [], LI: [],
+    BLOCKQUOTE: [], BR: [], FIGURE: [], FIGCAPTION: [], IMG: ["src", "alt"], VIDEO: ["src"], IFRAME: ["src"], CODE: []
+  };
+  const DROP = new Set(["SCRIPT", "STYLE", "OBJECT", "EMBED", "FORM", "INPUT", "BUTTON", "SELECT", "TEXTAREA", "LINK", "META"]);
+  // keepBlob: preview mode (show freshly uploaded files from memory)
+  function sanitize(html, keepBlob = false) {
+    const doc = new DOMParser().parseFromString("<body>" + String(html || "") + "</body>", "text/html");
+    const unwrap = (el) => el.replaceWith(...el.childNodes);
+    const walk = (node) => {
+      [...node.childNodes].forEach((el) => {
+        if (el.nodeType === 3) return;
+        if (el.nodeType !== 1) { el.remove(); return; }
+        const tag = el.tagName;
+        if (DROP.has(tag)) { el.remove(); return; }
+        if (tag === "DIV") {
+          if (el.classList.contains("video") && el.querySelector("iframe")) {
+            const ifr = el.querySelector("iframe"); el.replaceChildren(ifr); el.className = "video";
+            [...el.attributes].forEach((a) => a.name !== "class" && el.removeAttribute(a.name));
+            walk(el); return;
+          }
+          walk(el);
+          if (el.classList.contains("media-block")) { unwrap(el); return; }
+          const p = doc.createElement("p"); p.append(...el.childNodes); el.replaceWith(p); return;
+        }
+        if (!(tag in ALLOWED)) { walk(el); unwrap(el); return; }
+        const path = el.getAttribute("data-path");
+        [...el.attributes].forEach((a) => { if (!ALLOWED[tag].includes(a.name)) el.removeAttribute(a.name); });
+        if (path && !keepBlob) el.setAttribute("src", path);
+        if (tag === "A") {
+          const href = el.getAttribute("href") || "";
+          if (!/^(https?:|mailto:|#|post\.html|articles\.html|\/)/i.test(href)) el.removeAttribute("href");
+          el.setAttribute("target", "_blank"); el.setAttribute("rel", "noopener");
+        }
+        if (tag === "IMG" || tag === "VIDEO") {
+          const src = el.getAttribute("src") || "";
+          const ok = /^(https?:|assets\/)/i.test(src) || (keepBlob && /^blob:/i.test(src));
+          if (!ok) { el.remove(); return; }
+          if (tag === "IMG") el.setAttribute("loading", "lazy");
+          else { el.setAttribute("controls", ""); el.setAttribute("preload", "metadata"); el.setAttribute("playsinline", ""); el.className = "video-file"; }
+        }
+        if (tag === "IFRAME") {
+          const src = el.getAttribute("src") || "";
+          if (!/^https:\/\/(www\.youtube-nocookie\.com\/embed\/|player\.vimeo\.com\/video\/)/.test(src)) { el.remove(); return; }
+          el.setAttribute("allow", "accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen");
+          el.setAttribute("allowfullscreen", ""); el.setAttribute("loading", "lazy"); el.setAttribute("title", "Video");
+          if (!el.parentElement || !el.parentElement.classList.contains("video")) {
+            const w = doc.createElement("div"); w.className = "video"; el.replaceWith(w); w.appendChild(el);
+          }
+        }
+        walk(el);
+      });
+    };
+    walk(doc.body);
+    return doc.body.innerHTML.replace(/(<p><br><\/p>\s*)+$/g, "").trim();
+  }
+  const renderContent = (p) => (p.format === "html" ? sanitize(p.content) : md(p.content));
 
   /* ---------- Comments ---------- */
   const timeAgo = (iso) => {
@@ -296,7 +356,7 @@
       $("#post").innerHTML = `<div class="post-hero"><img src="${esc(p.cover)}" alt=""></div>
         <article><header class="post-head"><a class="chip" href="articles.html?category=${encodeURIComponent(p.category)}">${esc(p.category)}</a>
         <h1${fs}>${esc(p.title)}</h1><p class="lead">${esc(p.excerpt)}</p>${meta(p, true)}</header>
-        <div class="prose"${fs}>${md(p.content)}</div></article>
+        <div class="prose"${fs}>${renderContent(p)}</div></article>
         <div class="share" id="share"><b>Share:</b>
           <button type="button" id="copyLink">${ICONS.link} Copy link</button>
           <a href="https://wa.me/?text=${enc(shareText + " " + shareUrl)}" target="_blank" rel="noopener">WhatsApp</a>
@@ -332,7 +392,8 @@
     },
 
     about() {
-      $("#aboutAvatar").textContent = initials(SITE.author);
+      if (SITE.avatar) $("#aboutAvatar").outerHTML = authorAvatar("about-avatar");
+      else $("#aboutAvatar").textContent = initials(SITE.author);
       $("#statPosts").textContent = POSTS.length;
       $("#statCats").textContent = new Set(POSTS.map((p) => p.category)).size;
       $("#statWords").textContent = Math.round(POSTS.reduce((s, p) => s + p.content.split(/\s+/).length, 0) / 100) / 10 + "k";
@@ -411,7 +472,7 @@
 
     write() {
       if (!auth.on) { location.replace("login.html"); return; }
-      const f = $("#writeForm"), msg = $("#publishMsg");
+      const f = $("#writeForm"), msg = $("#publishMsg"), ed = $("#editor");
       const editId = new URLSearchParams(location.search).get("edit");
       const editing = editId ? POSTS.find((p) => p.id === editId) : null;
       const COVERS = [["assets/wing.webp", "Kanat"], ["assets/rocket.webp", "Roket"], ["assets/engine.webp", "Motor"], ["assets/satellite.webp", "Uydu"], ["assets/airfoil.webp", "Kanat profili"]];
@@ -420,7 +481,7 @@
       const say = (text, kind) => { msg.className = "hint ed-msg" + (kind ? " " + kind : ""); msg.innerHTML = text; };
       let uploadFile = null, uploadURL = "";
 
-      // category chips + cover thumbnails
+      // ---- category chips + cover thumbnails
       $("#cats").innerHTML = CATEGORIES.map((c, i) => `<label><input type="radio" name="category" value="${esc(c)}" ${i ? "" : "checked"}><span>${esc(c)}</span></label>`).join("");
       $("#covers").innerHTML = COVERS.map(([src, name], i) => `<label title="${name}"><input type="radio" name="cover" value="${esc(src)}" ${i ? "" : "checked"}><span class="thumb"><img src="${esc(src)}" alt="${name}"></span></label>`).join("") +
         `<label title="Kendi fotoğrafın"><input type="radio" name="cover" value="__upload"><span class="thumb upload" id="uploadThumb"><span><b>+</b>Fotoğraf yükle</span></span></label>
@@ -438,50 +499,73 @@
       const now = new Date();
       f.date.value = new Date(now - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 
-      // formatting toolbar
-      const ta = f.content;
-      const fire = () => ta.dispatchEvent(new Event("input", { bubbles: true }));
-      const wrap = (before, after, ph) => {
-        const a = ta.selectionStart, b = ta.selectionEnd, sel = ta.value.slice(a, b) || ph;
-        ta.setRangeText(before + sel + after, a, b, "select");
-        ta.setSelectionRange(a + before.length, a + before.length + sel.length); ta.focus(); fire();
+      // ---- Word-like editor (what you see is what readers see)
+      try { document.execCommand("defaultParagraphSeparator", false, "p"); } catch {}
+      let savedRange = null;
+      const changed = () => ed.dispatchEvent(new Event("input", { bubbles: true }));
+      document.addEventListener("selectionchange", () => {
+        const s = getSelection();
+        if (s.rangeCount && ed.contains(s.anchorNode)) { savedRange = s.getRangeAt(0).cloneRange(); updateToolbar(); }
+      });
+      const restore = () => {
+        ed.focus();
+        const s = getSelection(); s.removeAllRanges();
+        if (savedRange && ed.contains(savedRange.startContainer)) s.addRange(savedRange);
+        else { const r = document.createRange(); r.selectNodeContents(ed); r.collapse(false); s.addRange(r); }
       };
-      const linePrefix = (prefix, ph) => {
-        const a = ta.selectionStart, b = ta.selectionEnd, sel = ta.value.slice(a, b) || ph;
-        const lead = a > 0 && ta.value[a - 1] !== "\n" ? "\n\n" : "";
-        ta.setRangeText(lead + sel.split("\n").map((l) => prefix + l).join("\n") + "\n\n", a, b, "end"); ta.focus(); fire();
+      const exec = (cmd, val = null) => { restore(); document.execCommand(cmd, false, val); changed(); updateToolbar(); };
+      const toggleBlock = (tag) => {
+        restore();
+        const cur = String(document.queryCommandValue("formatBlock") || "").toLowerCase();
+        document.execCommand("formatBlock", false, cur === tag ? "p" : tag);
+        changed(); updateToolbar();
       };
+      const insertHTML = (html) => { restore(); document.execCommand("insertHTML", false, html); changed(); };
+      function updateToolbar() {
+        const block = String(document.queryCommandValue("formatBlock") || "").toLowerCase();
+        const on = { b: "bold", i: "italic", u: "underline", ul: "insertUnorderedList" };
+        $("#toolbar").querySelectorAll("button[data-md]").forEach((btn) => {
+          const k = btn.dataset.md;
+          let active = false;
+          try { if (on[k]) active = document.queryCommandState(on[k]); } catch {}
+          if (k === "h") active = block === "h2";
+          if (k === "q") active = block === "blockquote";
+          btn.classList.toggle("on", active);
+        });
+      }
+      $("#toolbar").addEventListener("mousedown", (e) => { if (e.target.closest("button")) e.preventDefault(); });
       $("#toolbar").addEventListener("click", (e) => {
-        const btn = e.target.closest("button"); if (!btn) return;
+        const btn = e.target.closest("button[data-md]"); if (!btn) return;
         const k = btn.dataset.md;
-        if (k === "b") wrap("**", "**", "kalın yazı");
-        if (k === "i") wrap("*", "*", "italik yazı");
-        if (k === "h") linePrefix("## ", "Ara başlık");
-        if (k === "ul") linePrefix("- ", "Liste maddesi");
-        if (k === "q") linePrefix("> ", "Alıntı");
-        if (k === "a") { const url = prompt("Link adresi (https://…)"); if (url) wrap("[", "](" + url.trim() + ")", "link yazısı"); }
-        if (k === "img") { lastCaret = touched ? ta.selectionStart : ta.value.length; $("#imgFile").click(); }
-        if (k === "video") { lastCaret = touched ? ta.selectionStart : ta.value.length; $("#videoPop").hidden = !$("#videoPop").hidden; if (!$("#videoPop").hidden) $("#videoUrl").focus(); }
+        if (k === "b") exec("bold");
+        if (k === "i") exec("italic");
+        if (k === "u") exec("underline");
+        if (k === "h") toggleBlock("h2");
+        if (k === "ul") exec("insertUnorderedList");
+        if (k === "q") toggleBlock("blockquote");
+        if (k === "a") {
+          const url = (prompt("Link adresi (https://…)") || "").trim(); if (!url) return;
+          const href = /^https?:\/\//i.test(url) ? url : "https://" + url;
+          restore();
+          if (getSelection().isCollapsed) insertHTML(`<a href="${esc(href)}">${esc(url)}</a>&nbsp;`); else exec("createLink", href);
+        }
+        if (k === "img") $("#imgFile").click();
+        if (k === "video") { $("#videoPop").hidden = !$("#videoPop").hidden; if (!$("#videoPop").hidden) $("#videoUrl").focus(); }
+      });
+      // keyboard shortcuts work too (Ctrl+B / Ctrl+I / Ctrl+U are built in)
+      ed.addEventListener("paste", (e) => {
+        e.preventDefault();
+        const text = (e.clipboardData || window.clipboardData).getData("text/plain");
+        const html = text.split(/\r?\n\s*\r?\n/).map((p) => "<p>" + esc(p).replace(/\r?\n/g, "<br>") + "</p>").join("");
+        document.execCommand("insertHTML", false, html); changed();
       });
 
-      // photos & videos inside the text (inserted where the cursor was)
-      const mediaMap = {};
-      let lastCaret = null, touched = false;
-      ta.addEventListener("focus", () => { touched = true; });
-      const insertBlock = (text) => {
-        const at = lastCaret == null ? ta.value.length : Math.min(lastCaret, ta.value.length);
-        const before = ta.value.slice(0, at), after = ta.value.slice(at);
-        const lead = before && !before.endsWith("\n\n") ? (before.endsWith("\n") ? "\n" : "\n\n") : "";
-        const tail = after.startsWith("\n\n") ? "" : after.startsWith("\n") ? "\n" : "\n\n";
-        ta.value = before + lead + text + tail + after;
-        lastCaret = (before + lead + text + tail).length;
-        ta.focus(); ta.setSelectionRange(lastCaret, lastCaret); fire();
-      };
+      // ---- photos & videos inside the text (inserted where the cursor is)
+      const mediaBlock = (inner) => `<div class="media-block" contenteditable="false">${inner}</div><p><br></p>`;
       async function uploadAsset(file, kind) {
         const ext = (file.name.split(".").pop() || "").toLowerCase().replace(/[^a-z0-9]/g, "") || (kind === "video" ? "mp4" : "jpg");
         const path = `assets/${kind}-${Date.now()}.${ext}`;
         await gh(`/repos/${SITE.repo}/contents/${path}`, { method: "PUT", body: JSON.stringify({ message: `Add ${kind}: ${file.name}`, content: await fileToB64(file) }) });
-        mediaMap[path] = URL.createObjectURL(file);
         return path;
       }
       async function handleUpload(file, kind, maxMB) {
@@ -489,13 +573,15 @@
         if (file.size > maxMB * 1024 * 1024) { say(`Dosya çok büyük (en fazla ${maxMB} MB).${kind === "video" ? " Büyük videolar için YouTube'a yükleyip linkini ekleyebilirsin." : ""}`, "error"); return; }
         say(kind === "video" ? "Video yükleniyor… (büyük dosyalarda biraz sürebilir)" : "Fotoğraf yükleniyor…");
         try {
-          const path = await uploadAsset(file, kind);
-          if (kind === "video") insertBlock(`@[video](${path})`);
-          else { const cap = prompt("Fotoğrafın altına açıklama yazmak ister misin? (boş bırakabilirsin)") || ""; insertBlock(`![${cap.replace(/[\[\]]/g, "")}](${path})`); }
+          const path = await uploadAsset(file, kind), blob = URL.createObjectURL(file);
+          if (kind === "video") insertHTML(mediaBlock(`<video class="video-file" src="${blob}" data-path="${esc(path)}" controls playsinline></video>`));
+          else {
+            const cap = (prompt("Fotoğrafın altına açıklama yazmak ister misin? (boş bırakabilirsin)") || "").trim();
+            insertHTML(mediaBlock(`<figure><img src="${blob}" data-path="${esc(path)}" alt="${esc(cap)}">${cap ? `<figcaption>${esc(cap)}</figcaption>` : ""}</figure>`));
+          }
           say(kind === "video" ? "✓ Video eklendi." : "✓ Fotoğraf eklendi.", "ok");
         } catch (err) { say("Yüklenemedi: " + esc(err.message), "error"); }
       }
-      ta.addEventListener("blur", () => { lastCaret = ta.selectionStart; });
       $("#imgFile").addEventListener("change", (e) => { handleUpload(e.target.files[0], "image", 8); e.target.value = ""; });
       $("#vidFile").addEventListener("change", (e) => { handleUpload(e.target.files[0], "video", 25); e.target.value = ""; });
       $("#videoFileBtn").addEventListener("click", () => { $("#videoPop").hidden = true; $("#vidFile").click(); });
@@ -503,23 +589,25 @@
       const addVideoUrl = () => {
         const u = $("#videoUrl").value.trim();
         if (!/^https?:\/\//i.test(u)) { say("Geçerli bir video linki yapıştır (https:// ile başlamalı).", "error"); return; }
-        insertBlock(`@[video](${u})`); $("#videoUrl").value = ""; $("#videoPop").hidden = true; say("✓ Video eklendi.", "ok");
+        insertHTML(mediaBlock(videoEmbed(u)));
+        $("#videoUrl").value = ""; $("#videoPop").hidden = true; say("✓ Video eklendi.", "ok");
       };
       $("#videoUrlBtn").addEventListener("click", addVideoUrl);
       $("#videoUrl").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addVideoUrl(); } });
 
-      // font choice
+      // ---- font choice (applies to the whole article)
       $("#fonts").innerHTML = Object.entries(FONTS).map(([k, v], i) => `<label><input type="radio" name="font" value="${k}" ${i ? "" : "checked"}><span style="font-family:${v.family}">${v.label}</span></label>`).join("");
       Object.keys(FONTS).forEach(loadFont);
-      const applyEditorFont = () => { ta.style.fontFamily = FONTS[f.font.value].family; f.title.style.fontFamily = FONTS[f.font.value].family; };
-      $("#fonts").addEventListener("change", applyEditorFont);
+      const applyFont = () => { const fam = FONTS[f.font.value].family; ed.style.fontFamily = fam; f.title.style.fontFamily = fam; };
+      $("#fonts").addEventListener("change", applyFont);
 
-      const plain = (t) => t.replace(/\]\([^)]*\)/g, "]").replace(/[#>*`\[\]_]/g, "").replace(/^\s*-\s/gm, "").replace(/\s+/g, " ").trim();
-      const autoExcerpt = () => { const p = plain(ta.value); return p.length > 160 ? p.slice(0, 157).replace(/\s\S*$/, "") + "…" : p; };
+      // ---- helpers
+      const textOf = () => ed.innerText.replace(/\s+/g, " ").trim();
+      const hasMedia = () => !!ed.querySelector("img, video, iframe");
+      const autoExcerpt = () => { const p = textOf(); return p.length > 160 ? p.slice(0, 157).replace(/\s\S*$/, "") + "…" : p; };
       const uniqueId = (base, list) => { base = base || "yazi"; let id = base, n = 2; while (list.some((p) => p.id === id)) id = base + "-" + n++; return id; };
-
       function fieldsFrom(coverPath) {
-        const words = ta.value.trim().split(/\s+/).filter(Boolean).length;
+        const words = textOf().split(" ").filter(Boolean).length;
         return {
           title: f.title.value.trim() || "Başlıksız",
           excerpt: f.excerpt.value.trim() || autoExcerpt(),
@@ -528,40 +616,51 @@
           readTime: Math.max(1, Math.round(words / 200)),
           cover: coverPath,
           font: f.font.value === "default" ? undefined : f.font.value,
-          content: "\n" + ta.value.trim() + "\n"
+          format: "html",
+          content: sanitize(ed.innerHTML)
         };
       }
+      // Older articles were written in Markdown: show them as formatted text in the editor
+      const toEditorHTML = (p) => {
+        const html = p.format === "html" ? sanitize(p.content) : md(p.content);
+        const tmp = document.createElement("div"); tmp.innerHTML = html;
+        tmp.querySelectorAll("figure, video.video-file, div.video").forEach((el) => {
+          const wrap = document.createElement("div"); wrap.className = "media-block"; wrap.contentEditable = "false";
+          el.replaceWith(wrap); wrap.appendChild(el);
+        });
+        return tmp.innerHTML;
+      };
 
-      // edit mode: load the existing post into the editor
+      // ---- edit mode
       if (editing) {
         document.title = "Düzenle · " + SITE.name;
         f.title.value = editing.title; f.excerpt.value = editing.excerpt || ""; f.date.value = editing.date;
         f.category.value = editing.category; f.cover.value = editing.cover;
-        f.font.value = FONTS[editing.font] ? editing.font : "default"; applyEditorFont();
-        ta.value = String(editing.content || "").trim();
+        f.font.value = FONTS[editing.font] ? editing.font : "default";
+        ed.innerHTML = toEditorHTML(editing);
         $("#publishBtn").textContent = "Kaydet";
         $("#saveState").innerHTML = `Düzenleniyor: <b>${esc(editing.title)}</b>`;
       } else if (editId) {
         say("Bu yazı bulunamadı. Yeni yazı olarak devam edebilirsin.", "error");
       }
+      applyFont();
 
-      // preview toggle
+      // ---- preview
       $("#previewBtn").addEventListener("click", () => {
         if (!$("#previewPane").hidden) { $("#previewPane").hidden = true; $("#editPane").hidden = false; $("#previewBtn").textContent = "Önizle"; return; }
         const cover = f.cover.value === "__upload" ? uploadURL : f.cover.value;
-        const post = fieldsFrom(cover);
-        const fam = FONTS[f.font.value].family;
+        const post = fieldsFrom(cover), fam = FONTS[f.font.value].family;
         $("#previewPane").innerHTML = `<span class="chip">${esc(post.category)}</span><h1 style="font-family:${fam}">${esc(post.title)}</h1>${meta(post, true)}
-          ${cover ? `<div class="pv-cover"><img src="${esc(cover)}" alt=""></div>` : ""}<div class="prose" style="font-family:${fam}">${md(ta.value, mediaMap) || '<p class="hint">Henüz içerik yok.</p>'}</div>`;
+          ${cover ? `<div class="pv-cover"><img src="${esc(cover)}" alt=""></div>` : ""}<div class="prose" style="font-family:${fam}">${sanitize(ed.innerHTML, true) || '<p class="hint">Henüz içerik yok.</p>'}</div>`;
         $("#previewPane").hidden = false; $("#editPane").hidden = true; $("#previewBtn").textContent = "Düzenle";
         window.scrollTo({ top: 0 });
       });
 
-      // publish / save
+      // ---- publish / save
       $("#publishBtn").addEventListener("click", async () => {
         const btn = $("#publishBtn");
         if (!f.title.value.trim()) { say("Önce bir başlık yaz.", "error"); f.title.focus(); return; }
-        if (!ta.value.trim()) { say("Yazının içeriği boş.", "error"); ta.focus(); return; }
+        if (!textOf() && !hasMedia()) { say("Yazının içeriği boş.", "error"); ed.focus(); return; }
         if (f.cover.value === "__upload" && !uploadFile) { say("Yüklemek için bir fotoğraf seç.", "error"); return; }
         btn.disabled = true; say(editing ? "Kaydediliyor…" : "Yayınlanıyor…");
         try {
@@ -588,7 +687,7 @@
           }
           try { localStorage.removeItem("aeronotes_draft"); } catch {}
           say(`✓ <b>${editing ? "Kaydedildi!" : "Yayınlandı!"}</b> 1–2 dakika içinde sitede görünür → <a href="post.html?id=${encodeURIComponent(post.id)}">yazıyı aç</a> · <a href="manage.html">Yazılarım</a>`, "ok");
-          if (!editing) { f.title.value = ""; ta.value = ""; f.excerpt.value = ""; }
+          if (!editing) { f.title.value = ""; ed.innerHTML = ""; f.excerpt.value = ""; }
           window.scrollTo({ top: 0 });
         } catch (err) {
           say((editing ? "Kaydedilemedi: " : "Yayınlanamadı: ") + esc(err.message), "error");
@@ -598,22 +697,29 @@
 
       if (editing) return; // drafts are only for new posts
 
-      // keep an unsent draft in this browser
-      const keys = ["title", "excerpt", "category", "font", "content"];
+      // ---- keep an unsent draft in this browser
       try {
         const d = JSON.parse(localStorage.getItem("aeronotes_draft") || "null");
-        if (d) { keys.forEach((k) => d[k] && (f[k].value = d[k])); if (d.cover && d.cover !== "__upload") f.cover.value = d.cover; }
+        if (d) {
+          ["title", "excerpt", "category", "font"].forEach((k) => d[k] && (f[k].value = d[k]));
+          if (d.cover && d.cover !== "__upload") f.cover.value = d.cover;
+          if (d.html) ed.innerHTML = toEditorHTML({ format: "html", content: d.html });
+          applyFont();
+        }
       } catch {}
-      applyEditorFont();
       let timer;
       const saveDraft = () => {
         clearTimeout(timer);
         timer = setTimeout(() => {
-          try { localStorage.setItem("aeronotes_draft", JSON.stringify({ ...Object.fromEntries(keys.map((k) => [k, f[k].value])), cover: f.cover.value })); $("#saveState").textContent = "✓ Taslak kaydedildi"; } catch {}
-        }, 400);
+          try {
+            localStorage.setItem("aeronotes_draft", JSON.stringify({ title: f.title.value, excerpt: f.excerpt.value, category: f.category.value, font: f.font.value, cover: f.cover.value, html: sanitize(ed.innerHTML) }));
+            $("#saveState").textContent = "✓ Taslak kaydedildi";
+          } catch {}
+        }, 500);
       };
       f.addEventListener("input", saveDraft);
       f.addEventListener("change", saveDraft);
+      ed.addEventListener("input", saveDraft);
     },
 
     manage() {

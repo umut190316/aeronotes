@@ -342,3 +342,18 @@ details summary { cursor: pointer; }
 .share svg { width: 16px; height: 16px; }
 .share .copied { background: #ecfdf3; border-color: #abefc6; color: #067647; }
 @media (max-width: 720px) { .share { padding: 0 16px; margin-top: -28px; } }
+
+/* ---------- Visual editor ---------- */
+#editor.ed-body { min-height: 420px; max-width: none; margin: 0; padding: 18px 20px; overflow-wrap: anywhere; cursor: text; }
+#editor:empty::before { content: attr(data-placeholder); color: #b5bcc8; pointer-events: none; }
+#editor:focus { outline: none; border-color: var(--navy-600); }
+#editor .media-block { margin: 20px 0; position: relative; user-select: none; }
+#editor .media-block::after { content: ""; position: absolute; inset: 0; border-radius: var(--radius); }
+#editor .media-block:hover::after { outline: 2px solid #c7d5ef; }
+#editor .media-block figure, #editor .media-block .video, #editor .media-block video { margin: 0; }
+#editor p { margin: 0 0 14px; }
+.ed-toolbar button.on { background: #dbe4f3; color: var(--navy); }
+.prose u { text-underline-offset: 3px; }
+img.avatar.photo { object-fit: cover; padding: 0; }
+img.about-avatar.photo { object-fit: cover; object-position: center 30%; display: block; }
+.hero img.avatar.photo { position: static; inset: auto; width: 24px; height: 24px; transform: none; }

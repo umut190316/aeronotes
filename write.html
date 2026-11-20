@@ -40,8 +40,9 @@
 
       <div class="ed-toolbar" id="toolbar" aria-label="Biçimlendirme">
         <button type="button" data-md="h" title="Ara başlık">Başlık</button>
-        <button type="button" data-md="b" title="Kalın"><b>K</b></button>
-        <button type="button" data-md="i" title="İtalik"><i>İ</i></button>
+        <button type="button" data-md="b" title="Kalın (Ctrl+B)"><b>K</b></button>
+        <button type="button" data-md="i" title="İtalik (Ctrl+I)"><i>İ</i></button>
+        <button type="button" data-md="u" title="Altı çizili (Ctrl+U)"><u>A</u></button>
         <button type="button" data-md="ul" title="Liste">• Liste</button>
         <button type="button" data-md="q" title="Alıntı">❝ Alıntı</button>
         <button type="button" data-md="a" title="Link">🔗 Link</button>
@@ -58,7 +59,7 @@
       </div>
       <input type="file" id="imgFile" accept="image/*" hidden>
       <input type="file" id="vidFile" accept="video/mp4,video/webm,video/quicktime" hidden>
-      <textarea class="ed-body" name="content" placeholder="Yazmaya başla…" aria-label="İçerik"></textarea>
+      <div class="ed-body prose" id="editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="İçerik" data-placeholder="Yazmaya başla…"></div>
 
       <details class="ed-more">
         <summary>Diğer ayarlar</summary>
