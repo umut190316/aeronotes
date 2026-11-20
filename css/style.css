@@ -451,3 +451,6 @@ img.about-avatar.photo { object-fit: cover; object-position: 40% 25%; display: b
 .up-item .up-body p { color: rgba(255,255,255,.8); }
 .up-item .up-body .chip { background: rgba(255,255,255,.16); color: #fff; }
 .up-item.today { box-shadow: 0 0 0 2px #fff, var(--shadow); }
+.up-item .up-bg { opacity: .7; mix-blend-mode: normal; filter: saturate(.85); }
+.up-item::after { background: linear-gradient(90deg, rgba(10,31,61,.82) 0%, rgba(10,31,61,.55) 55%, rgba(10,31,61,.2) 100%); }
+.up-item .up-body b, .up-item .up-body p { text-shadow: 0 1px 6px rgba(0,0,0,.45); }
