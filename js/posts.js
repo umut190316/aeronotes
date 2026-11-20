@@ -96,7 +96,7 @@ Fully reusable two-stage systems are in active testing, and several companies ar
     category: "Propulsion",
     date: "2026-11-07",
     readTime: 5,
-    cover: "assets/engine.svg",
+    cover: "assets/engine.webp",
     content: `
 Electric and hydrogen aircraft get most of the headlines, but for long-haul flights in the next two decades the most realistic decarbonisation tool is **Sustainable Aviation Fuel**.
 
