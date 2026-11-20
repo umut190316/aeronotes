@@ -22,7 +22,10 @@
       <h1>Yazar girişi</h1>
       <p class="hint">Bu sayfa sadece blog sahibi içindir.</p>
       <form id="pwForm" autocomplete="on">
-        <input type="text" name="username" autocomplete="username" value="AeroNotes" hidden>
+        <div class="field">
+          <label for="username">Kullanıcı adı</label>
+          <input id="username" name="username" type="text" autocomplete="username" autocapitalize="off" spellcheck="false" required>
+        </div>
         <div class="field">
           <label for="password">Parola</label>
           <input id="password" name="password" type="password" autocomplete="current-password" required>
@@ -59,9 +62,12 @@
             </ol>
           </details>
         </div>
-        <input type="text" name="username" autocomplete="username" value="AeroNotes" hidden>
         <div class="field">
-          <label for="newPw">2. Kendi parolanı belirle</label>
+          <label for="newUser">2. Kullanıcı adın</label>
+          <input id="newUser" name="username" type="text" autocomplete="username" autocapitalize="off" spellcheck="false" required>
+        </div>
+        <div class="field">
+          <label for="newPw">3. Kendi parolanı belirle</label>
           <input id="newPw" name="newPw" type="password" autocomplete="new-password" required>
           <span class="hint" id="pwRule">En az 12 karakter; büyük harf, küçük harf, rakam ve sembol içersin.</span>
         </div>

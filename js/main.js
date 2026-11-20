@@ -54,6 +54,11 @@
     const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveKey"]);
     return crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: iter, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
   }
+  // Username is stored only as a salted hash next to the encrypted key.
+  async function userHash(salt, user) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(salt + ":" + String(user).trim().toLowerCase()));
+    return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
   async function vaultSeal(token, pw) {
     const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
     const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await vaultKey(pw, salt, VAULT_ITER), new TextEncoder().encode(token));
@@ -489,8 +494,11 @@
         btn.disabled = true; say(msg, "Kontrol ediliyor…");
         try {
           let token;
-          try { token = await vaultOpen(vault, $("#password").value); }
-          catch { await new Promise((r) => setTimeout(r, 800)); throw new Error("Parola yanlış."); }
+          try {
+            if (vault.uh && (await userHash(vault.salt, $("#username").value)) !== vault.uh) throw 0;
+            token = await vaultOpen(vault, $("#password").value);
+          }
+          catch { await new Promise((r) => setTimeout(r, 800)); throw new Error("Kullanıcı adı veya parola yanlış."); }
           try { await checkToken(token); }
           catch (err) { throw new Error(err.message + " \"Parolamı unuttum\" adımlarıyla yeni anahtar oluştur."); }
           location.replace("write.html");
@@ -503,7 +511,8 @@
         e.preventDefault();
         const f = e.target, msg = $("#setupMsg"), btn = e.submitter;
         const token = auth.on && $("#tokenField").hidden ? auth.get() : f.token.value.trim();
-        const pw = f.newPw.value;
+        const pw = f.newPw.value, user = f.username.value.trim();
+        if (user.length < 3) return say(msg, "Kullanıcı adı en az 3 karakter olmalı.", "error");
         if (!token) return say(msg, "GitHub anahtarını yapıştır.", "error");
         if (!/^(github_pat_|ghp_)/.test(token)) return say(msg, "Bu bir GitHub anahtarı gibi görünmüyor (github_pat_ ile başlamalı).", "error");
         if (pw.length < 12 || !/[a-zçğıöşü]/.test(pw) || !/[A-ZÇĞİÖŞÜ]/.test(pw) || !/\d/.test(pw) || !/[^A-Za-z0-9çğıöşüÇĞİÖŞÜ]/.test(pw))
@@ -513,6 +522,7 @@
         try {
           await checkToken(token);
           const sealed = await vaultSeal(token, pw);
+          sealed.uh = await userHash(sealed.salt, user);
           let sha;
           try { sha = (await gh(`/repos/${SITE.repo}/contents/auth.json`)).sha; } catch {}
           await gh(`/repos/${SITE.repo}/contents/auth.json`, { method: "PUT", body: JSON.stringify({ message: "Update author password", content: b64encodeText(JSON.stringify(sealed, null, 2) + "\n"), ...(sha ? { sha } : {}) }) });
