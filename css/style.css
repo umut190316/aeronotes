@@ -454,3 +454,7 @@ img.about-avatar.photo { object-fit: cover; object-position: 40% 25%; display: b
 .up-item .up-bg { opacity: .7; mix-blend-mode: normal; filter: saturate(.85); }
 .up-item::after { background: linear-gradient(90deg, rgba(10,31,61,.82) 0%, rgba(10,31,61,.55) 55%, rgba(10,31,61,.2) 100%); }
 .up-item .up-body b, .up-item .up-body p { text-shadow: 0 1px 6px rgba(0,0,0,.45); }
+/* Article cards: soft grey body instead of white */
+.card { background: #eef1f6; border-color: #e1e6ee; }
+.card:hover { background: #e9edf4; }
+.card .chip { background: #fff; }
