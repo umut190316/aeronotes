@@ -43,3 +43,12 @@ js/posts.js       → yazılar ve site ayarları (yazar adı, kategoriler)
 js/main.js        → sayfa oluşturma, arama, markdown
 assets/           → kapak görselleri
 ```
+
+## SEO ve paylaşım önizlemesi
+
+`functions/_middleware.js` (Cloudflare Pages) her şeyi `js/posts.js`'ten otomatik üretir:
+
+- `/article/<id>`: başlık, açıklama, canonical, Open Graph / Twitter etiketleri, JSON-LD ve yazının metni HTML'de hazır gelir. Eski `post.html?id=` linkleri buraya 301 ile yönlenir.
+- `/sitemap.xml` ve `/robots.txt`
+- Yayınla butonu her yazı için `assets/og/<id>.jpg` (1200×630) paylaşım görselini kendisi oluşturur.
+- Kendi alan adına geçince Cloudflare'de `SITE_URL` ortam değişkenini (örn. `https://umutbakirci.com`) ayarla; canonical ve sitemap o adresi kullanır.

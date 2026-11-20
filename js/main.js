@@ -64,6 +64,19 @@
     await gh(`/repos/${SITE.repo}/contents/auth.json`, { method: "PUT", body: JSON.stringify({ message, content: b64encodeText(JSON.stringify(vault, null, 2) + "\n"), ...(cur ? { sha: cur.sha } : {}) }) });
   }
 
+  /* Crop any cover (File or image path) to a 1200x630 JPEG for link previews. */
+  async function makeOgImage(src) {
+    const img = await new Promise((resolve, reject) => {
+      const im = new Image(); im.onload = () => resolve(im); im.onerror = reject;
+      im.src = src instanceof Blob ? URL.createObjectURL(src) : "/" + String(src).replace(/^\/+/, "");
+    });
+    const W = 1200, H = 630, c = document.createElement("canvas"); c.width = W; c.height = H;
+    const k = Math.max(W / img.naturalWidth, H / img.naturalHeight), w = img.naturalWidth * k, h = img.naturalHeight * k;
+    const g = c.getContext("2d"); g.fillStyle = "#0f2d52"; g.fillRect(0, 0, W, H);
+    g.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+    return await new Promise((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error("canvas"))), "image/jpeg", 0.86));
+  }
+
   // Username is stored only as a salted hash next to the encrypted key.
   async function userHash(salt, user) {
     const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(salt + ":" + String(user).trim().toLowerCase()));
@@ -116,6 +129,7 @@
   const sorted = POSTS.slice().sort((a, b) => b.date.localeCompare(a.date));
   const $ = (s, el = document) => el.querySelector(s);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const postUrl = (id) => "/article/" + encodeURIComponent(id);
   const initials = (n) => n.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
   function formatDate(iso) {
@@ -175,8 +189,8 @@
   }
 
   function card(p, withExcerpt) {
-    return `<a class="card" href="post.html?id=${encodeURIComponent(p.id)}">
-      <div class="card-media"><img src="${esc(p.cover)}" alt="" loading="lazy"><span class="chip">${esc(p.category)}</span></div>
+    return `<a class="card" href="${postUrl(p.id)}">
+      <div class="card-media"><img src="${esc(p.cover)}" alt="${esc(p.title)}" loading="lazy"><span class="chip">${esc(p.category)}</span></div>
       <div class="card-body"><h3>${esc(p.title)}</h3>${withExcerpt ? `<p class="excerpt">${esc(p.excerpt)}</p>` : ""}${meta(p)}</div></a>`;
   }
 
@@ -217,7 +231,7 @@
       const q = input.value.trim().toLowerCase();
       const hits = sorted.filter((p) => !q || (p.title + " " + p.excerpt + " " + p.category + " " + p.content).toLowerCase().includes(q));
       results.innerHTML = hits.length
-        ? hits.map((p) => `<a href="post.html?id=${encodeURIComponent(p.id)}"><b>${esc(p.title)}</b><span>${esc(p.category)} · ${formatDate(p.date)}</span></a>`).join("")
+        ? hits.map((p) => `<a href="${postUrl(p.id)}"><b>${esc(p.title)}</b><span>${esc(p.category)} · ${formatDate(p.date)}</span></a>`).join("")
         : '<div class="none">No articles found.</div>';
     };
     const open = () => { overlay.classList.add("open"); input.value = ""; run(); setTimeout(() => input.focus(), 10); };
@@ -379,8 +393,8 @@
   const pages = {
     home() {
       const featured = sorted.find((p) => p.featured) || sorted[0];
-      $("#hero").innerHTML = `<a class="hero" href="post.html?id=${encodeURIComponent(featured.id)}">
-        <img src="${esc(featured.cover)}" alt="">
+      $("#hero").innerHTML = `<a class="hero" href="${postUrl(featured.id)}">
+        <img src="${esc(featured.cover)}" alt="${esc(featured.title)}">
         <div class="hero-body"><span class="chip">${esc(featured.tag || featured.category)}</span>
         <h1>${esc(featured.title)}</h1><p>${esc(featured.excerpt)}</p>${meta(featured, true)}</div></a>`;
       if ($("#follow")) $("#follow").innerHTML = followBox();
@@ -410,17 +424,17 @@
     },
 
     post() {
-      const id = new URLSearchParams(location.search).get("id");
+      const id = new URLSearchParams(location.search).get("id") || decodeURIComponent((location.pathname.match(/\/article\/([^/]+)/) || [])[1] || "");
       const i = sorted.findIndex((p) => p.id === id);
       const p = sorted[i];
       if (!p) { $("#post").innerHTML = '<div class="container page-head"><h1>Article not found</h1><p><a class="link-arrow" href="articles.html">Browse all articles ' + ICONS.arrow + "</a></p></div>"; return; }
       document.title = p.title + " · " + SITE.name;
       const font = FONTS[p.font] || FONTS.default; loadFont(p.font);
       const fs = font === FONTS.default ? "" : ` style="font-family:${font.family}"`;
-      const shareUrl = location.origin + location.pathname + "?id=" + encodeURIComponent(p.id);
+      const shareUrl = location.origin + postUrl(p.id);
       const enc = encodeURIComponent, shareText = p.title + " — " + SITE.name;
       const newer = sorted[i - 1], older = sorted[i + 1];
-      $("#post").innerHTML = `<div class="post-hero"><img src="${esc(p.cover)}" alt=""></div>
+      $("#post").innerHTML = `<div class="post-hero"><img src="${esc(p.cover)}" alt="${esc(p.title)}"></div>
         <article><header class="post-head"><a class="chip" href="articles.html?category=${encodeURIComponent(p.category)}">${esc(p.category)}</a>
         <h1${fs}>${esc(p.title)}</h1><p class="lead">${esc(p.excerpt)}</p>${meta(p, true)}</header>
         <div class="prose"${fs}>${renderContent(p)}</div></article>
@@ -433,8 +447,8 @@
           ${navigator.share ? `<button type="button" id="nativeShare">${ICONS.share} More…</button>` : ""}
         </div>
         ${followBox()}
-        <nav class="post-nav">${older ? `<a class="link-arrow" href="post.html?id=${encodeURIComponent(older.id)}">${ICONS.arrowLeft} Older</a>` : "<span></span>"}
-        ${newer ? `<a class="link-arrow" href="post.html?id=${encodeURIComponent(newer.id)}">Newer ${ICONS.arrow}</a>` : "<span></span>"}</nav>
+        <nav class="post-nav">${older ? `<a class="link-arrow" href="${postUrl(older.id)}">${ICONS.arrowLeft} Older</a>` : "<span></span>"}
+        ${newer ? `<a class="link-arrow" href="${postUrl(newer.id)}">Newer ${ICONS.arrow}</a>` : "<span></span>"}</nav>
         <section class="comments" id="comments">
           <h2>Comments <span class="count" id="cCount"></span></h2>
           <div id="cList" class="c-list"><p class="hint">Loading comments…</p></div>
@@ -814,6 +828,16 @@
           }
           const remote = await loadRemotePosts();
           const data = fieldsFrom(coverPath);
+          const postId = editing ? editing.id : uniqueId(slug(f.title.value), remote.posts);
+          if (editing) data.updated = new Date().toISOString().slice(0, 10);
+          // 1200x630 JPEG for LinkedIn / WhatsApp / Google previews
+          try {
+            const og = await makeOgImage(f.cover.value === "__upload" ? uploadFile : coverPath);
+            const ogPath = "assets/og/" + postId + ".jpg";
+            let sha; try { sha = (await gh(`/repos/${SITE.repo}/contents/${ogPath}`)).sha; } catch {}
+            await gh(`/repos/${SITE.repo}/contents/${ogPath}`, { method: "PUT", body: JSON.stringify({ message: "Share image: " + data.title, content: await fileToB64(og), ...(sha ? { sha } : {}) }) });
+            data.ogImage = ogPath;
+          } catch (e) { console.warn("share image skipped", e); }
           let post;
           if (editing) {
             const i = remote.posts.findIndex((p) => p.id === editing.id);
@@ -823,12 +847,12 @@
             remote.posts[i] = post;
             await saveRemotePosts(remote, remote.posts, "Edit post: " + post.title);
           } else {
-            post = { id: uniqueId(slug(f.title.value), remote.posts), ...data };
+            post = { id: postId, ...data };
             await saveRemotePosts(remote, [post, ...remote.posts], "New post: " + post.title);
             POSTS.push(post);
           }
           try { localStorage.removeItem("aeronotes_draft"); } catch {}
-          say(`✓ <b>${editing ? "Kaydedildi!" : "Yayınlandı!"}</b> 1–2 dakika içinde sitede görünür → <a href="post.html?id=${encodeURIComponent(post.id)}">yazıyı aç</a> · <a href="manage.html">Yazılarım</a>`, "ok");
+          say(`✓ <b>${editing ? "Kaydedildi!" : "Yayınlandı!"}</b> 1–2 dakika içinde sitede görünür → <a href="${postUrl(post.id)}">yazıyı aç</a> · <a href="manage.html">Yazılarım</a>`, "ok");
           if (!editing) { f.title.value = ""; ed.innerHTML = ""; f.excerpt.value = ""; }
           window.scrollTo({ top: 0 });
         } catch (err) {
@@ -892,7 +916,7 @@
               <img src="${esc(p.cover)}" alt="">
               <div><b>${esc(p.title)}</b><div class="hint">${esc(p.category)} · ${formatDate(p.date)}</div>
               <div class="c-actions">
-                <a class="btn ghost" href="post.html?id=${encodeURIComponent(p.id)}">Görüntüle</a>
+                <a class="btn ghost" href="${postUrl(p.id)}">Görüntüle</a>
                 <a class="btn ghost" href="write.html?edit=${encodeURIComponent(p.id)}">✏️ Düzenle</a>
                 <button class="btn danger" data-act="delpost">🗑 Sil</button>
               </div></div></div>`).join("") : '<p class="hint">Henüz yazı yok.</p>';
@@ -903,7 +927,7 @@
         const items = allComments.filter((c) => c.status === tab);
         list.innerHTML = items.length ? items.map((c) => `<div class="c-item ${c.status}" data-cid="${c.id}">
             <div class="c-head"><span class="avatar">${esc(initials(c.name))}</span><b>${esc(c.name)}</b><span class="hint">${timeAgo(c.created_at)}</span></div>
-            <div class="c-post">Yazı: <a href="post.html?id=${encodeURIComponent(c.post)}#comments">${esc(titleOf(c.post))}</a></div>
+            <div class="c-post">Yazı: <a href="${postUrl(c.post)}#comments">${esc(titleOf(c.post))}</a></div>
             <p>${esc(c.text).replace(/\n/g, "<br>")}</p>
             <div class="c-actions">${c.status === "pending" ? '<button class="btn" data-act="approve">✓ Onayla</button>' : ""}<button class="btn danger" data-act="delc">🗑 Sil</button></div>
           </div>`).join("") : `<p class="hint">${tab === "pending" ? "Bekleyen yorum yok 🎉" : "Henüz yayında yorum yok."}</p>`;

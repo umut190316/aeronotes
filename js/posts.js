@@ -26,6 +26,7 @@ const POSTS = [
     date: "2026-11-16",
     readTime: 6,
     cover: "assets/wing.webp",
+    ogImage: "assets/og/morphing-winglets.jpg",
     featured: true,
     content: `
 Every commercial airliner flies through a wide range of conditions on a single trip: a heavy climb-out, a long cruise, and a slow, high-lift approach. Yet the wingtip — the region that decides a large share of **induced drag** — is usually a fixed piece of carbon fibre designed for one compromise point. Morphing winglets try to remove that compromise.
@@ -67,6 +68,7 @@ Studies suggest fuel savings in the range of 1–3% beyond a fixed winglet, whic
     date: "2026-11-10",
     readTime: 7,
     cover: "assets/rocket.webp",
+    ogImage: "assets/og/reusable-launch-vehicles.jpg",
     content: `
 For most of the space age, rockets were thrown away after a single flight. Imagine scrapping an airliner after each trip — that was the economics of access to orbit. Reusability changes the equation by turning the most expensive hardware into an asset rather than a consumable.
 
@@ -99,6 +101,7 @@ Fully reusable two-stage systems are in active testing, and several companies ar
     date: "2026-11-07",
     readTime: 5,
     cover: "assets/engine.webp",
+    ogImage: "assets/og/sustainable-aviation-fuel.jpg",
     content: `
 Electric and hydrogen aircraft get most of the headlines, but for long-haul flights in the next two decades the most realistic decarbonisation tool is **Sustainable Aviation Fuel**.
 
@@ -130,6 +133,7 @@ Cost (two to five times conventional fuel) and production volume are the main ba
     date: "2026-11-03",
     readTime: 6,
     cover: "assets/satellite.webp",
+    ogImage: "assets/og/small-satellites-earth-observation.jpg",
     content: `
 Earth observation used to be the domain of large, expensive satellites built over a decade. Today, constellations of small satellites image the entire land surface of the planet every day.
 
@@ -161,6 +165,7 @@ The trend is toward tasking on demand, on-orbit processing and data fusion acros
     date: "2026-10-28",
     readTime: 8,
     cover: "assets/airfoil.webp",
+    ogImage: "assets/og/airfoil-basics-lift.jpg",
     content: `
 Almost everyone has heard that air over the top of a wing "has to travel further, so it goes faster". It is a tidy explanation — and it is wrong. Let's look at what actually happens.
 
