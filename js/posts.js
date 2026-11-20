@@ -12,7 +12,7 @@ const SITE = {
   repo: "umut190316/aeronotes" // örn: "kullaniciadi/aeronotes" — Write sayfasındaki GitHub düzenleme linki için
 };
 
-const CATEGORIES = ["Aviation", "Space", "Propulsion", "Aerodynamics", "Sustainability", "Technology"];
+const CATEGORIES = ["Aviation", "Space", "Engines", "World News", "Sustainability", "Technology"];
 
 const POSTS = [
   {
@@ -93,7 +93,7 @@ Fully reusable two-stage systems are in active testing, and several companies ar
     id: "sustainable-aviation-fuel",
     title: "Sustainable Aviation Fuel (SAF): From Concept to Operations",
     excerpt: "What SAF is, how it is produced, and why it is the most realistic near-term lever for aviation's emissions.",
-    category: "Propulsion",
+    category: "Engines",
     date: "2026-11-07",
     readTime: 5,
     cover: "assets/engine.webp",
@@ -155,7 +155,7 @@ The trend is toward tasking on demand, on-orbit processing and data fusion acros
     id: "airfoil-basics-lift",
     title: "Airfoils 101: How Lift Really Works",
     excerpt: "Beyond the equal-transit-time myth: pressure, circulation and the Kutta condition explained simply.",
-    category: "Aerodynamics",
+    category: "Aviation",
     date: "2026-10-28",
     readTime: 8,
     cover: "assets/airfoil.webp",

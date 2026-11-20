@@ -35,6 +35,9 @@
       <div class="ed-label">Kapak</div>
       <div class="ed-covers" id="covers"></div>
 
+      <div class="ed-label">Yazı tipi</div>
+      <div class="ed-chips ed-fonts" id="fonts"></div>
+
       <div class="ed-toolbar" id="toolbar" aria-label="Biçimlendirme">
         <button type="button" data-md="h" title="Ara başlık">Başlık</button>
         <button type="button" data-md="b" title="Kalın"><b>K</b></button>
@@ -42,7 +45,19 @@
         <button type="button" data-md="ul" title="Liste">• Liste</button>
         <button type="button" data-md="q" title="Alıntı">❝ Alıntı</button>
         <button type="button" data-md="a" title="Link">🔗 Link</button>
+        <span class="tb-sep"></span>
+        <button type="button" data-md="img" title="Yazının içine fotoğraf ekle">📷 Fotoğraf</button>
+        <button type="button" data-md="video" title="Yazının içine video ekle">🎬 Video</button>
       </div>
+      <div class="ed-pop" id="videoPop" hidden>
+        <b>Video ekle</b>
+        <div class="row-inline"><input id="videoUrl" placeholder="YouTube linkini yapıştır (https://youtube.com/…)"><button type="button" class="btn" id="videoUrlBtn">Ekle</button></div>
+        <div class="hint">ya da</div>
+        <button type="button" class="btn ghost" id="videoFileBtn">💻 Bilgisayardan video yükle (en fazla 25 MB)</button>
+        <button type="button" class="ed-pop-x" id="videoPopX" aria-label="Kapat">✕</button>
+      </div>
+      <input type="file" id="imgFile" accept="image/*" hidden>
+      <input type="file" id="vidFile" accept="video/mp4,video/webm,video/quicktime" hidden>
       <textarea class="ed-body" name="content" placeholder="Yazmaya başla…" aria-label="İçerik"></textarea>
 
       <details class="ed-more">
