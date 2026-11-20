@@ -65,12 +65,30 @@
   }
 
   /* Fonts the author can pick per article */
+  // The well-known font is used when the reader has it; otherwise a free look-alike from Google Fonts
+  // is loaded, so phones and Macs see the same style.
+  const GF = (name) => name.replace(/ /g, "+") + ":ital,wght@0,400;0,700;1,400;1,700";
   const FONTS = {
-    default: { label: "Modern", family: "'Inter', system-ui, sans-serif" },
-    serif: { label: "Klasik", family: "'Merriweather', Georgia, serif", gf: "Merriweather:ital,wght@0,400;0,700;1,400" },
-    lora: { label: "Zarif", family: "'Lora', Georgia, serif", gf: "Lora:ital,wght@0,400;0,700;1,400" },
-    slab: { label: "Güçlü", family: "'Roboto Slab', Georgia, serif", gf: "Roboto+Slab:wght@400;700" },
-    mono: { label: "Teknik", family: "'JetBrains Mono', Consolas, monospace", gf: "JetBrains+Mono:ital,wght@0,400;0,700;1,400" }
+    default: { label: "Inter (varsayılan)", family: "'Inter', system-ui, sans-serif" },
+    times: { label: "Times New Roman", family: "'Times New Roman', Tinos, Times, serif", gf: GF("Tinos") },
+    arial: { label: "Arial", family: "Arial, Arimo, Helvetica, sans-serif", gf: GF("Arimo") },
+    helvetica: { label: "Helvetica", family: "'Helvetica Neue', Helvetica, Arimo, Arial, sans-serif", gf: GF("Arimo") },
+    georgia: { label: "Georgia", family: "Georgia, Gelasio, serif", gf: GF("Gelasio") },
+    calibri: { label: "Calibri", family: "Calibri, Carlito, sans-serif", gf: GF("Carlito") },
+    cambria: { label: "Cambria", family: "Cambria, Caladea, Georgia, serif", gf: GF("Caladea") },
+    garamond: { label: "Garamond", family: "'EB Garamond', Garamond, serif", gf: GF("EB Garamond") },
+    verdana: { label: "Verdana", family: "Verdana, 'DejaVu Sans', Geneva, sans-serif" },
+    tahoma: { label: "Tahoma", family: "Tahoma, 'Segoe UI', Geneva, sans-serif" },
+    trebuchet: { label: "Trebuchet MS", family: "'Trebuchet MS', 'Fira Sans', sans-serif", gf: GF("Fira Sans") },
+    palatino: { label: "Palatino", family: "'Palatino Linotype', Palatino, 'Book Antiqua', 'Libre Baskerville', serif", gf: "Libre+Baskerville:ital,wght@0,400;0,700;1,400" },
+    courier: { label: "Courier New", family: "'Courier New', Cousine, Courier, monospace", gf: GF("Cousine") },
+    comic: { label: "Comic Sans", family: "'Comic Sans MS', 'Comic Neue', cursive", gf: GF("Comic Neue") },
+    roboto: { label: "Roboto", family: "Roboto, Arial, sans-serif", gf: GF("Roboto") },
+    // older choices (kept so existing articles still look right)
+    serif: { label: "Merriweather", family: "'Merriweather', Georgia, serif", gf: "Merriweather:ital,wght@0,400;0,700;1,400", hidden: true },
+    lora: { label: "Lora", family: "'Lora', Georgia, serif", gf: GF("Lora"), hidden: true },
+    slab: { label: "Roboto Slab", family: "'Roboto Slab', Georgia, serif", gf: "Roboto+Slab:wght@400;700", hidden: true },
+    mono: { label: "JetBrains Mono", family: "'JetBrains Mono', Consolas, monospace", gf: GF("JetBrains Mono"), hidden: true }
   };
   function loadFont(key) {
     const f = FONTS[key]; if (!f || !f.gf || document.getElementById("gf-" + key)) return;
@@ -596,8 +614,8 @@
       $("#videoUrl").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addVideoUrl(); } });
 
       // ---- font choice (applies to the whole article)
-      $("#fonts").innerHTML = Object.entries(FONTS).map(([k, v], i) => `<label><input type="radio" name="font" value="${k}" ${i ? "" : "checked"}><span style="font-family:${v.family}">${v.label}</span></label>`).join("");
-      Object.keys(FONTS).forEach(loadFont);
+      $("#fonts").innerHTML = Object.entries(FONTS).filter(([, v]) => !v.hidden).map(([k, v], i) => `<label><input type="radio" name="font" value="${k}" ${i ? "" : "checked"}><span style="font-family:${v.family}">${v.label}</span></label>`).join("");
+      Object.keys(FONTS).filter((k) => !FONTS[k].hidden).forEach(loadFont);
       const applyFont = () => { const fam = FONTS[f.font.value].family; ed.style.fontFamily = fam; f.title.style.fontFamily = fam; };
       $("#fonts").addEventListener("change", applyFont);
 
@@ -636,6 +654,7 @@
         document.title = "Düzenle · " + SITE.name;
         f.title.value = editing.title; f.excerpt.value = editing.excerpt || ""; f.date.value = editing.date;
         f.category.value = editing.category; f.cover.value = editing.cover;
+        if (FONTS[editing.font] && FONTS[editing.font].hidden) { const v = FONTS[editing.font]; loadFont(editing.font); $("#fonts").insertAdjacentHTML("beforeend", `<label><input type="radio" name="font" value="${editing.font}"><span style="font-family:${v.family}">${v.label}</span></label>`); }
         f.font.value = FONTS[editing.font] ? editing.font : "default";
         ed.innerHTML = toEditorHTML(editing);
         $("#publishBtn").textContent = "Kaydet";
