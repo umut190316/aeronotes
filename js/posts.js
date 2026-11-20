@@ -158,7 +158,7 @@ The trend is toward tasking on demand, on-orbit processing and data fusion acros
     category: "Aerodynamics",
     date: "2026-10-28",
     readTime: 8,
-    cover: "assets/airfoil.svg",
+    cover: "assets/airfoil.webp",
     content: `
 Almost everyone has heard that air over the top of a wing "has to travel further, so it goes faster". It is a tidy explanation — and it is wrong. Let's look at what actually happens.
 
