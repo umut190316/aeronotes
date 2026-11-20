@@ -38,8 +38,8 @@ h1, h2, h3, h4 { color: var(--ink); line-height: 1.2; margin: 0; letter-spacing:
 }
 .nav { display: flex; align-items: center; gap: 24px; height: 72px; }
 .brand { display: flex; align-items: center; gap: 14px; font-weight: 800; font-size: 26px; color: var(--ink); letter-spacing: -0.02em; }
-.brand svg { height: 34px; width: auto; color: var(--navy); flex: none; }
-.brand .brand-word { height: 13px; }
+.brand svg { height: 28px; width: auto; color: var(--navy); flex: none; }
+.brand .brand-word { height: 11px; }
 .tagline { color: var(--muted); font-size: 14px; padding-left: 24px; border-left: 1px solid var(--line); white-space: nowrap; }
 .nav-links { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .nav-links a {
@@ -212,8 +212,9 @@ h1, h2, h3, h4 { color: var(--ink); line-height: 1.2; margin: 0; letter-spacing:
   .container { padding: 0 16px; }
   .nav { height: 64px; gap: 8px; }
   .brand { font-size: 22px; }
-  .brand svg { height: 26px; width: auto; }
-  .brand .brand-word { height: 10px; }
+  .brand { gap: 9px; }
+  .brand svg { height: 20px; width: auto; }
+  .brand .brand-word { height: 7px; }
   .menu-toggle { display: grid; }
   .nav-links {
     display: none; position: absolute; top: 64px; left: 0; right: 0; background: #fff; flex-direction: column; align-items: stretch;
@@ -377,3 +378,8 @@ img.about-avatar.photo { object-fit: cover; object-position: 40% 25%; display: b
 .tf-steps svg { display: block; margin: 8px 0; max-width: 200px; height: auto; }
 .tf-secret { font-size: 15px; letter-spacing: .04em; word-break: break-all; }
 #tfCode { max-width: 200px; letter-spacing: .2em; }
+
+@media (max-width: 380px) {
+  .brand svg { height: 18px; }
+  .brand .brand-word { height: 6px; }
+}
