@@ -127,7 +127,7 @@ Cost (two to five times conventional fuel) and production volume are the main ba
     category: "Space",
     date: "2026-11-03",
     readTime: 6,
-    cover: "assets/satellite.svg",
+    cover: "assets/satellite.webp",
     content: `
 Earth observation used to be the domain of large, expensive satellites built over a decade. Today, constellations of small satellites image the entire land surface of the planet every day.
 
