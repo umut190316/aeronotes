@@ -917,7 +917,7 @@
     $("#site-footer").innerHTML = footer();
     $("#menuBtn").addEventListener("click", () => $("#navLinks").classList.toggle("open"));
     const lo = $("#logoutBtn");
-    if (lo) lo.addEventListener("click", () => { auth.clear(); location.href = "index.html"; });
+    if (lo) lo.addEventListener("click", () => { auth.clear(); location.href = "login.html"; });
     setupSearch();
     if (pages[page]) pages[page]();
   });
