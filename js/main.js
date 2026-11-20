@@ -54,6 +54,15 @@
     const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveKey"]);
     return crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: iter, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
   }
+  async function getAuthJson() {
+    try { const f = await gh(`/repos/${SITE.repo}/contents/auth.json`); return { sha: f.sha, vault: JSON.parse(b64decode(f.content)) }; }
+    catch { return null; }
+  }
+  async function putAuthJson(vault, message) {
+    const cur = await getAuthJson();
+    await gh(`/repos/${SITE.repo}/contents/auth.json`, { method: "PUT", body: JSON.stringify({ message, content: b64encodeText(JSON.stringify(vault, null, 2) + "\n"), ...(cur ? { sha: cur.sha } : {}) }) });
+  }
+
   // Username is stored only as a salted hash next to the encrypted key.
   async function userHash(salt, user) {
     const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(salt + ":" + String(user).trim().toLowerCase()));
@@ -465,13 +474,17 @@
       // Is a password already set? (encrypted key published as auth.json)
       let vault = null;
       try { const r = await fetch("auth.json?t=" + Date.now(), { cache: "no-store" }); if (r.ok) vault = await r.json(); } catch {}
+      // Two-step login on? Then the vault is only handed out by the server after a correct code.
+      let twofa = false;
+      try { const r = await fetch("/api/auth", { cache: "no-store" }); if (r.ok) twofa = !!(await r.json()).twofa; } catch {}
+      if (twofa) { $("#codeField").hidden = false; $("#code").required = true; }
 
       const showSetup = () => {
         $("#pwSection").hidden = true; $("#setupSection").hidden = false;
         if (vault) { $("#setupTitle").textContent = auth.on ? "Parolayı değiştir" : "Parolayı sıfırla"; $("#backToPw").hidden = false; }
         if (auth.on) $("#tokenField").hidden = true; // already logged in: reuse current key
       };
-      if (!vault || setupMode) showSetup(); else { $("#pwSection").hidden = false; $("#password").focus(); }
+      if ((!vault && !twofa) || setupMode) showSetup(); else { $("#pwSection").hidden = false; $("#password").focus(); }
       $("#toSetup").addEventListener("click", (e) => { e.preventDefault(); showSetup(); });
 
       async function checkToken(token) {
@@ -493,10 +506,16 @@
         const msg = $("#pwMsg"), btn = e.submitter;
         btn.disabled = true; say(msg, "Kontrol ediliyor…");
         try {
-          let token;
+          let token, v = vault;
+          if (twofa) {
+            const r = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "vault", code: $("#code").value }) });
+            const d = await r.json().catch(() => ({}));
+            if (!r.ok) { await new Promise((res) => setTimeout(res, 800)); throw new Error(d.error || "Doğrulama kodu yanlış."); }
+            v = d.vault;
+          }
           try {
-            if (vault.uh && (await userHash(vault.salt, $("#username").value)) !== vault.uh) throw 0;
-            token = await vaultOpen(vault, $("#password").value);
+            if (v.uh && (await userHash(v.salt, $("#username").value)) !== v.uh) throw 0;
+            token = await vaultOpen(v, $("#password").value);
           }
           catch { await new Promise((r) => setTimeout(r, 800)); throw new Error("Kullanıcı adı veya parola yanlış."); }
           try { await checkToken(token); }
@@ -523,9 +542,10 @@
           await checkToken(token);
           const sealed = await vaultSeal(token, pw);
           sealed.uh = await userHash(sealed.salt, user);
-          let sha;
-          try { sha = (await gh(`/repos/${SITE.repo}/contents/auth.json`)).sha; } catch {}
-          await gh(`/repos/${SITE.repo}/contents/auth.json`, { method: "PUT", body: JSON.stringify({ message: "Update author password", content: b64encodeText(JSON.stringify(sealed, null, 2) + "\n"), ...(sha ? { sha } : {}) }) });
+          if (twofa) {
+            const r = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + token }, body: JSON.stringify({ action: "save", vault: sealed }) });
+            if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "Hata " + r.status);
+          } else await putAuthJson(sealed, "Update author password");
           say(msg, "✓ Parola kaydedildi! Yönlendiriliyorsun…", "ok");
           setTimeout(() => location.replace("write.html"), 1200);
         } catch (err) { say(msg, "Kaydedilemedi: " + err.message, "error"); }
@@ -877,6 +897,7 @@
               </div></div></div>`).join("") : '<p class="hint">Henüz yazı yok.</p>';
           return;
         }
+        if (tab === "security") { drawSecurity(); return; }
         if (!allComments) { list.innerHTML = '<p class="hint">Yükleniyor…</p>'; return; }
         const items = allComments.filter((c) => c.status === tab);
         list.innerHTML = items.length ? items.map((c) => `<div class="c-item ${c.status}" data-cid="${c.id}">
@@ -885,6 +906,61 @@
             <p>${esc(c.text).replace(/\n/g, "<br>")}</p>
             <div class="c-actions">${c.status === "pending" ? '<button class="btn" data-act="approve">✓ Onayla</button>' : ""}<button class="btn danger" data-act="delc">🗑 Sil</button></div>
           </div>`).join("") : `<p class="hint">${tab === "pending" ? "Bekleyen yorum yok 🎉" : "Henüz yayında yorum yok."}</p>`;
+      }
+
+      async function drawSecurity() {
+        list.innerHTML = '<p class="hint">Yükleniyor…</p>';
+        let on = false;
+        try { on = !!(await (await fetch("/api/auth", { cache: "no-store" })).json()).twofa; }
+        catch { list.innerHTML = '<p class="hint error">Güvenlik ayarları yüklenemedi.</p>'; return; }
+        if (tab !== "security") return;
+        list.innerHTML = on
+          ? `<div class="c-item sec"><b>2 adımlı doğrulama: Açık ✅</b>
+              <p class="hint">Girişte kullanıcı adı ve parolanın yanında Authenticator uygulamandaki 6 haneli kod da isteniyor.</p>
+              <p class="hint">Telefonunu kaybedersen: giriş ekranında "Parolamı unuttum" adımlarıyla yeni GitHub anahtarı oluşturup gir, sonra buradan kapat.</p>
+              <div class="c-actions"><button class="btn danger" id="tfOff">2 adımlı doğrulamayı kapat</button></div></div>`
+          : `<div class="c-item sec"><b>2 adımlı doğrulama: Kapalı</b>
+              <p class="hint">Açınca girişte telefonundaki Authenticator uygulamasının (Google Authenticator, Microsoft Authenticator vb.) ürettiği 6 haneli kod da istenir.</p>
+              <div class="c-actions"><button class="btn" id="tfStart">Aç</button></div><div id="tfSetup"></div></div>`;
+        const off = $("#tfOff"), start = $("#tfStart");
+        if (off) off.onclick = async () => {
+          if (!confirm("2 adımlı doğrulamayı kapatmak istediğine emin misin?")) return;
+          off.disabled = true;
+          try {
+            const d = await api("/api/auth", { method: "POST", body: JSON.stringify({ action: "disable" }) });
+            if (d.vault) await putAuthJson(d.vault, "Turn off two-step login");
+            say("✓ Kapatıldı. 1–2 dakika içinde giriş sadece kullanıcı adı ve parolayla yapılır.", "ok"); drawSecurity();
+          } catch (err) { say("Olmadı: " + esc(err.message), "error"); off.disabled = false; }
+        };
+        if (start) start.onclick = async () => {
+          start.disabled = true;
+          try {
+            const d = await api("/api/auth", { method: "POST", body: JSON.stringify({ action: "setup" }) });
+            $("#tfSetup").innerHTML = `<ol class="hint tf-steps">
+                <li>Telefonuna <b>Google Authenticator</b> (ya da Microsoft Authenticator) kur.</li>
+                <li>Bu telefondaysan: <a class="btn ghost" href="${esc(d.uri)}">Authenticator'a ekle</a><br>
+                    <span id="tfQrLine" hidden>Bilgisayardaysan uygulamayla QR kodu okut: <span id="tfQr"></span></span>
+                    Olmazsa uygulamada "Kurulum anahtarı gir" de ve şunu yaz: <code class="tf-secret">${esc(d.secret.replace(/(.{4})/g, "$1 ").trim())}</code></li>
+                <li>Uygulamada çıkan 6 haneli kodu yaz:</li></ol>
+              <div class="field"><input id="tfCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="123456"></div>
+              <button class="btn" id="tfOk">Onayla ve aç</button>`;
+            const s = document.createElement("script");
+            s.src = "https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js";
+            s.onload = () => { try { const q = qrcode(0, "M"); q.addData(d.uri); q.make(); $("#tfQr").innerHTML = q.createSvgTag({ cellSize: 4, margin: 2 }); $("#tfQrLine").hidden = false; } catch {} };
+            document.head.appendChild(s);
+            $("#tfOk").onclick = async () => {
+              const ok = $("#tfOk"); ok.disabled = true; say("Açılıyor…");
+              try {
+                const cur = await getAuthJson();
+                if (!cur) throw new Error("auth.json bulunamadı.");
+                await api("/api/auth", { method: "POST", body: JSON.stringify({ action: "enable", code: $("#tfCode").value, vault: cur.vault }) });
+                // The key now lives only behind the code: remove the public copy.
+                try { await gh(`/repos/${SITE.repo}/contents/auth.json`, { method: "DELETE", body: JSON.stringify({ message: "Two-step login on: remove public key vault", sha: cur.sha }) }); } catch {}
+                say("✓ 2 adımlı doğrulama açıldı! Bir sonraki girişte kod istenecek.", "ok"); drawSecurity();
+              } catch (err) { say("Olmadı: " + esc(err.message), "error"); ok.disabled = false; }
+            };
+          } catch (err) { say("Olmadı: " + esc(err.message), "error"); start.disabled = false; }
+        };
       }
 
       $("#tabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; tab = b.dataset.tab; say(""); draw(); });

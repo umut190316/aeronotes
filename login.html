@@ -30,6 +30,10 @@
           <label for="password">Parola</label>
           <input id="password" name="password" type="password" autocomplete="current-password" required>
         </div>
+        <div class="field" id="codeField" hidden>
+          <label for="code">Doğrulama kodu</label>
+          <input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="Authenticator'daki 6 haneli kod">
+        </div>
         <button class="btn wide" type="submit">Giriş yap</button>
         <p id="pwMsg" class="hint"></p>
       </form>

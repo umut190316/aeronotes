@@ -368,3 +368,10 @@ img.about-avatar.photo { object-fit: cover; object-position: 40% 25%; display: b
 .btn-li:hover { background: #004182; }
 .btn-li svg { width: 18px; height: 18px; }
 .share + .follow-box { max-width: 420px; }
+
+/* Security tab */
+.c-item.sec p { margin: 6px 0; }
+.tf-steps { margin: 14px 0 10px; padding-left: 20px; line-height: 1.9; }
+.tf-steps svg { display: block; margin: 8px 0; max-width: 200px; height: auto; }
+.tf-secret { font-size: 15px; letter-spacing: .04em; word-break: break-all; }
+#tfCode { max-width: 200px; letter-spacing: .2em; }
