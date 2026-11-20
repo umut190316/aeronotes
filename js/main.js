@@ -65,6 +65,15 @@
     await gh(`/repos/${SITE.repo}/contents/auth.json`, { method: "PUT", body: JSON.stringify({ message, content: b64encodeText(JSON.stringify(vault, null, 2) + "\n"), ...(cur ? { sha: cur.sha } : {}) }) });
   }
 
+  /* Downscale an uploaded photo to a JPEG no wider/taller than max px. */
+  async function shrinkImage(file, max) {
+    const img = await new Promise((ok, fail) => { const im = new Image(); im.onload = () => ok(im); im.onerror = fail; im.src = URL.createObjectURL(file); });
+    const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement("canvas"); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    return await new Promise((ok, fail) => c.toBlob((b) => (b ? ok(b) : fail(new Error("canvas"))), "image/jpeg", 0.85));
+  }
+
   /* Crop any cover (File or image path) to a 1200x630 JPEG for link previews. */
   async function makeOgImage(src) {
     const img = await new Promise((resolve, reject) => {
@@ -425,7 +434,7 @@
         $("#upcomingWrap").hidden = false;
         $("#upcoming").innerHTML = plan.map((s) => {
           const d = new Date(s.date + "T00:00:00");
-          return `<div class="up-item${s.date === today ? " today" : ""}">
+          return `<div class="up-item${s.date === today ? " today" : ""}">${s.image ? `<img class="up-bg" src="${esc(s.image)}" alt="" loading="lazy">` : ""}
             <div class="up-date"><b>${d.getDate()}</b><span>${d.toLocaleDateString("en-US", { month: "short" })}</span><small>${s.date === today ? "Today" : d.toLocaleDateString("en-US", { weekday: "short" })}</small></div>
             <div class="up-body">${s.category ? `<span class="chip">${esc(s.category)}</span>` : ""}<b>${esc(s.title)}</b>${s.note ? `<p>${esc(s.note)}</p>` : ""}</div></div>`;
         }).join("");
@@ -1009,6 +1018,7 @@
               <div class="field"><label>Başlık</label><input type="text" name="title" maxlength="120" placeholder="Örn: How the Jet Engine Changed Everything" required></div>
               <div class="field"><label>Kategori</label><select name="category"><option value="">(yok)</option>${CATEGORIES.map((c) => `<option>${esc(c)}</option>`).join("")}</select></div>
               <div class="field"><label>Kısa not (isteğe bağlı)</label><input type="text" name="note" maxlength="160" placeholder="Örn: An interview with a test pilot"></div>
+              <div class="field"><label>Arka plan görseli (isteğe bağlı)</label><input type="file" name="image" accept="image/*"><span class="hint">Kartın lacivert zemininde şeffaf olarak görünür.</span></div>
               <button class="btn" type="submit">Takvime ekle</button>
             </form></div>
           ${items.length ? items.map((s, i) => `<div class="c-item${s.date < today ? " past" : ""}" data-si="${i}">
@@ -1019,8 +1029,14 @@
           e.preventDefault();
           const f = e.target, btn = f.querySelector("button"); btn.disabled = true; say("Kaydediliyor…");
           try {
+            let image;
+            if (f.image.files[0]) {
+              const blob = await shrinkImage(f.image.files[0], 1400);
+              image = "assets/schedule/plan-" + Date.now() + ".jpg";
+              await gh(`/repos/${SITE.repo}/contents/${image}`, { method: "PUT", body: JSON.stringify({ message: "Schedule image: " + f.title.value.trim(), content: await fileToB64(blob) }) });
+            }
             const r = await loadSchedule();
-            r.list.push({ date: f.date.value, title: f.title.value.trim(), category: f.category.value || undefined, note: f.note.value.trim() || undefined });
+            r.list.push({ date: f.date.value, title: f.title.value.trim(), category: f.category.value || undefined, note: f.note.value.trim() || undefined, image });
             await saveSchedule(r, r.list, "Schedule: " + f.title.value.trim());
             say("✓ Takvime eklendi. 1–2 dakika içinde ana sayfada görünür.", "ok"); drawSchedule();
           } catch (err) { say("Olmadı: " + esc(err.message), "error"); btn.disabled = false; }
