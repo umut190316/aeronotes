@@ -286,7 +286,7 @@
     write() {
       if (!auth.on) { location.replace("login.html"); return; }
       const f = $("#writeForm"), msg = $("#publishMsg");
-      const COVERS = [["assets/wing.webp", "Kanat"], ["assets/rocket.svg", "Roket"], ["assets/engine.webp", "Motor"], ["assets/satellite.webp", "Uydu"], ["assets/airfoil.webp", "Kanat profili"]];
+      const COVERS = [["assets/wing.webp", "Kanat"], ["assets/rocket.webp", "Roket"], ["assets/engine.webp", "Motor"], ["assets/satellite.webp", "Uydu"], ["assets/airfoil.webp", "Kanat profili"]];
       const slug = (s) => s.toLowerCase().replace(/ı/g, "i").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       const say = (text, kind) => { msg.className = "hint ed-msg" + (kind ? " " + kind : ""); msg.innerHTML = text; };
       let uploadFile = null, uploadURL = "";

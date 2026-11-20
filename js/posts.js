@@ -64,7 +64,7 @@ Studies suggest fuel savings in the range of 1–3% beyond a fixed winglet, whic
     category: "Space",
     date: "2026-11-10",
     readTime: 7,
-    cover: "assets/rocket.svg",
+    cover: "assets/rocket.webp",
     content: `
 For most of the space age, rockets were thrown away after a single flight. Imagine scrapping an airliner after each trip — that was the economics of access to orbit. Reusability changes the equation by turning the most expensive hardware into an asset rather than a consumable.
 
