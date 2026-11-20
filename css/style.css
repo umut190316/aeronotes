@@ -458,3 +458,22 @@ img.about-avatar.photo { object-fit: cover; object-position: 40% 25%; display: b
 .card { background: #eef1f6; border-color: #e1e6ee; }
 .card:hover { background: #e9edf4; }
 .card .chip { background: #fff; }
+
+/* Flashcards */
+.fc-wrap { max-width: 760px; padding-bottom: 56px; }
+.fc-wrap .filters { margin-bottom: 18px; }
+.fc-stage { perspective: 1400px; }
+.fc-card { position: relative; height: 340px; transform-style: preserve-3d; transition: transform .55s cubic-bezier(.2,.7,.2,1); cursor: pointer; touch-action: manipulation; user-select: none; -webkit-user-select: none; outline: none; }
+.fc-card.flipped { transform: rotateY(180deg); }
+.fc-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: var(--radius); padding: 28px 26px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 14px; box-shadow: var(--shadow); }
+.fc-front { background: linear-gradient(135deg, #0f2d52 0%, #0a1f3d 100%); color: #fff; }
+.fc-front .chip { background: rgba(255,255,255,.16); color: #fff; }
+.fc-front h2 { color: #fff; font-size: clamp(30px, 7vw, 42px); margin: 0; line-height: 1.15; }
+.fc-back { background: #eef1f6; transform: rotateY(180deg); }
+.fc-back h3 { margin: 0; font-size: 20px; color: var(--navy); }
+.fc-back p { margin: 0; font-size: 18px; line-height: 1.55; color: var(--ink); max-width: 520px; }
+.fc-hint { position: absolute; bottom: 16px; font-size: 13px; opacity: .65; }
+.fc-card:focus-visible .fc-face { box-shadow: 0 0 0 3px rgba(15,45,82,.35), var(--shadow); }
+.fc-controls { display: flex; align-items: center; justify-content: center; gap: 22px; margin-top: 18px; }
+.fc-controls .icon-btn { width: 46px; height: 46px; border-radius: 50%; background: var(--soft); }
+.fc-actions { display: flex; justify-content: center; gap: 10px; margin-top: 12px; }

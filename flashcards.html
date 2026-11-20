@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aerospace Flashcards · AeroNotes</title>
+  <meta name="description" content="Aerospace flashcards: learn nearly 200 key aviation, propulsion, structures and space terms. Double-tap a card to see its meaning.">
+  <meta name="author" content="Umutcan Bakırcı">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="cards">
+<header class="site-header" id="site-header"></header>
+<main class="container fc-wrap">
+  <div class="page-head">
+    <h1>Aerospace Flashcards</h1>
+    <p>Key terms from aerodynamics to orbits. Double-tap a card to see its meaning, swipe for the next one.</p>
+  </div>
+  <div class="filters" id="fcFilters"></div>
+  <div class="fc-stage">
+    <div class="fc-card" id="fcCard" tabindex="0" role="button" aria-label="Flashcard, double-tap to flip">
+      <div class="fc-face fc-front"><span class="chip" id="fcCat"></span><h2 id="fcTerm"></h2><span class="fc-hint">Double-tap to flip</span></div>
+      <div class="fc-face fc-back"><span class="chip" id="fcCat2"></span><h3 id="fcTerm2"></h3><p id="fcDef"></p><span class="fc-hint">Double-tap to flip back</span></div>
+    </div>
+  </div>
+  <div class="fc-controls">
+    <button class="icon-btn" id="fcPrev" aria-label="Previous card"></button>
+    <span id="fcCount" class="hint"></span>
+    <button class="icon-btn" id="fcNext" aria-label="Next card"></button>
+  </div>
+  <div class="fc-actions"><button class="btn ghost" id="fcFlip">Flip</button><button class="btn ghost" id="fcShuffle">Shuffle</button></div>
+</main>
+<footer class="site-footer" id="site-footer"></footer>
+<script src="js/posts.js"></script>
+<script src="js/main.js"></script>
+<script src="js/glossary.js"></script>
+<script src="js/flashcards.js"></script>
+</body>
+</html>

@@ -120,6 +120,7 @@ async function sitemap(context) {
     { loc: origin + "/articles", lastmod: newest },
     { loc: origin + "/about" },
     { loc: origin + "/quiz" },
+    { loc: origin + "/flashcards" },
     ...posts.map((p) => ({ loc: origin + postPath(p.id), lastmod: isoDate(p.updated) || isoDate(p.date), image: absUrl(origin, p.cover || ogImageOf(p)), title: p.title }))
   ];
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -170,6 +171,8 @@ export async function onRequest(context) {
       return await listingPage(context, "/articles", { title: "All Articles · " + SITE_NAME, description: "Every AeroNotes article on aviation, space, engines, history and aerospace technology.", list: "#grid" });
     if (path === "/quiz" || path === "/quiz.html")
       return await listingPage(context, "/quiz", { title: "Aviation & Space Quiz · " + SITE_NAME, description: "Test your aviation and space knowledge: 10 random questions per round from a bank of more than 1,500 on airports, airlines, aircraft, space missions and aerospace history." });
+    if (path === "/flashcards" || path === "/flashcards.html")
+      return await listingPage(context, "/flashcards", { title: "Aerospace Flashcards · " + SITE_NAME, description: "Learn nearly 200 key aerospace terms with flip cards: aerodynamics, controls, propulsion, structures, operations, avionics and space." });
     if (path === "/about" || path === "/about.html")
       return await listingPage(context, "/about", { title: "About · " + SITE_NAME, description: "About " + AUTHOR + ", the aerospace engineering student behind " + SITE_NAME + "." });
   } catch (err) {

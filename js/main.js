@@ -210,7 +210,7 @@
     return `<div class="container nav">
       <a class="brand" href="index.html" aria-label="${esc(SITE.name)} home">${ICONS.logo}${ICONS.wordmark}</a>
       <span class="tagline">${esc(SITE.tagline)}</span>
-      <nav class="nav-links" id="navLinks">${link("index.html", "Home", "home")}${link("articles.html", "Articles", "articles")}${link("quiz.html", "Quiz", "quiz")}${link("about.html", "About", "about")}</nav>
+      <nav class="nav-links" id="navLinks">${link("index.html", "Home", "home")}${link("articles.html", "Articles", "articles")}${link("quiz.html", "Quiz", "quiz")}${link("flashcards.html", "Flashcards", "cards")}${link("about.html", "About", "about")}</nav>
       <div class="nav-tools">
         <button class="icon-btn" id="searchBtn" aria-label="Search">${ICONS.search}</button>
         ${auth.on ? `<a class="btn" href="write.html">${ICONS.pen}<span class="label">Write</span></a>
