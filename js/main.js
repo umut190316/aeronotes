@@ -285,75 +285,133 @@
 
     write() {
       if (!auth.on) { location.replace("login.html"); return; }
-      const f = $("#writeForm");
-      f.category.innerHTML = CATEGORIES.map((c) => `<option>${esc(c)}</option>`).join("");
+      const f = $("#writeForm"), msg = $("#publishMsg");
+      const COVERS = [["assets/wing.svg", "Kanat"], ["assets/rocket.svg", "Roket"], ["assets/engine.svg", "Motor"], ["assets/satellite.svg", "Uydu"], ["assets/airfoil.svg", "Kanat profili"]];
+      const slug = (s) => s.toLowerCase().replace(/ı/g, "i").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const say = (text, kind) => { msg.className = "hint ed-msg" + (kind ? " " + kind : ""); msg.innerHTML = text; };
+      let uploadFile = null, uploadURL = "";
+
+      // category chips + cover thumbnails
+      $("#cats").innerHTML = CATEGORIES.map((c, i) => `<label><input type="radio" name="category" value="${esc(c)}" ${i ? "" : "checked"}><span>${esc(c)}</span></label>`).join("");
+      $("#covers").innerHTML = COVERS.map(([src, name], i) => `<label title="${name}"><input type="radio" name="cover" value="${src}" ${i ? "" : "checked"}><span class="thumb"><img src="${src}" alt="${name}"></span></label>`).join("") +
+        `<label title="Kendi fotoğrafın"><input type="radio" name="cover" value="__upload"><span class="thumb upload" id="uploadThumb"><span><b>+</b>Fotoğraf yükle</span></span></label>
+         <input type="file" id="coverFile" accept="image/*" hidden>`;
+      const fileInput = $("#coverFile");
+      $("#uploadThumb").parentElement.addEventListener("click", (e) => { e.preventDefault(); fileInput.click(); });
+      fileInput.addEventListener("change", () => {
+        const file = fileInput.files[0]; if (!file) return;
+        if (file.size > 5 * 1024 * 1024) { say("Fotoğraf çok büyük (en fazla 5 MB).", "error"); return; }
+        uploadFile = file; if (uploadURL) URL.revokeObjectURL(uploadURL); uploadURL = URL.createObjectURL(file);
+        $("#uploadThumb").innerHTML = `<img src="${uploadURL}" alt="">`;
+        f.querySelector('input[name=cover][value="__upload"]').checked = true;
+      });
+
       const now = new Date();
       f.date.value = new Date(now - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-      const slug = (s) => s.toLowerCase().replace(/ı/g, "i").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-      const update = () => {
-        const words = f.content.value.trim().split(/\s+/).filter(Boolean).length;
-        const post = {
-          id: slug(f.title.value) || "new-post",
-          title: f.title.value || "Untitled",
-          excerpt: f.excerpt.value,
+
+      // formatting toolbar
+      const ta = f.content;
+      const fire = () => ta.dispatchEvent(new Event("input", { bubbles: true }));
+      const wrap = (before, after, ph) => {
+        const a = ta.selectionStart, b = ta.selectionEnd, sel = ta.value.slice(a, b) || ph;
+        ta.setRangeText(before + sel + after, a, b, "select");
+        ta.setSelectionRange(a + before.length, a + before.length + sel.length); ta.focus(); fire();
+      };
+      const linePrefix = (prefix, ph) => {
+        const a = ta.selectionStart, b = ta.selectionEnd, sel = ta.value.slice(a, b) || ph;
+        const lead = a > 0 && ta.value[a - 1] !== "\n" ? "\n\n" : "";
+        ta.setRangeText(lead + sel.split("\n").map((l) => prefix + l).join("\n") + "\n\n", a, b, "end"); ta.focus(); fire();
+      };
+      $("#toolbar").addEventListener("click", (e) => {
+        const btn = e.target.closest("button"); if (!btn) return;
+        const k = btn.dataset.md;
+        if (k === "b") wrap("**", "**", "kalın yazı");
+        if (k === "i") wrap("*", "*", "italik yazı");
+        if (k === "h") linePrefix("## ", "Ara başlık");
+        if (k === "ul") linePrefix("- ", "Liste maddesi");
+        if (k === "q") linePrefix("> ", "Alıntı");
+        if (k === "a") { const url = prompt("Link adresi (https://…)"); if (url) wrap("[", "](" + url.trim() + ")", "link yazısı"); }
+      });
+
+      const plain = (t) => t.replace(/\]\([^)]*\)/g, "]").replace(/[#>*`\[\]_]/g, "").replace(/^\s*-\s/gm, "").replace(/\s+/g, " ").trim();
+      const autoExcerpt = () => { const p = plain(ta.value); return p.length > 160 ? p.slice(0, 157).replace(/\s\S*$/, "") + "…" : p; };
+      const uniqueId = (base) => { base = base || "yazi"; let id = base, n = 2; while (POSTS.some((p) => p.id === id)) id = base + "-" + n++; return id; };
+
+      function buildPost(coverPath) {
+        const words = ta.value.trim().split(/\s+/).filter(Boolean).length;
+        return {
+          id: uniqueId(slug(f.title.value)),
+          title: f.title.value.trim() || "Başlıksız",
+          excerpt: f.excerpt.value.trim() || autoExcerpt(),
           category: f.category.value,
           date: f.date.value,
           readTime: Math.max(1, Math.round(words / 200)),
-          cover: f.cover.value
+          cover: coverPath
         };
-        $("#pvTitle").innerHTML = `<span class="chip">${esc(post.category)}</span><h1>${esc(post.title)}</h1>${meta(post, true)}`;
-        $("#pvBody").innerHTML = md(f.content.value) || '<p class="hint">Preview appears here as you type.</p>';
+      }
+      const codeFor = (post) => {
         const fields = Object.entries(post).map(([k, v]) => `    ${k}: ${JSON.stringify(v)},`).join("\n");
-        $("#code").textContent = `  {\n${fields}\n    content: \`\n${f.content.value.replace(/`/g, "\\`").replace(/\$\{/g, "\\${")}\n\`\n  },`;
+        const body = ta.value.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$\{/g, "\\${");
+        return "  {\n" + fields + "\n    content: `\n" + body + "\n`\n  },";
       };
-      f.addEventListener("input", update);
-      f.addEventListener("change", update);
 
+      // preview toggle
+      $("#previewBtn").addEventListener("click", () => {
+        if (!$("#previewPane").hidden) { $("#previewPane").hidden = true; $("#editPane").hidden = false; $("#previewBtn").textContent = "Önizle"; return; }
+        const cover = f.cover.value === "__upload" ? uploadURL : f.cover.value;
+        const post = buildPost(cover);
+        $("#previewPane").innerHTML = `<span class="chip">${esc(post.category)}</span><h1>${esc(post.title)}</h1>${meta(post, true)}
+          ${cover ? `<div class="pv-cover"><img src="${esc(cover)}" alt=""></div>` : ""}<div class="prose">${md(ta.value) || '<p class="hint">Henüz içerik yok.</p>'}</div>`;
+        $("#previewPane").hidden = false; $("#editPane").hidden = true; $("#previewBtn").textContent = "Düzenle";
+        window.scrollTo({ top: 0 });
+      });
+
+      // publish
       $("#publishBtn").addEventListener("click", async () => {
-        const btn = $("#publishBtn"), msg = $("#publishMsg");
-        if (!f.title.value.trim() || !f.content.value.trim()) { msg.textContent = "Başlık ve içerik boş olamaz."; msg.className = "hint error"; return; }
-        btn.disabled = true; msg.className = "hint"; msg.textContent = "Yayınlanıyor…";
+        const btn = $("#publishBtn");
+        if (!f.title.value.trim()) { say("Önce bir başlık yaz.", "error"); f.title.focus(); return; }
+        if (!ta.value.trim()) { say("Yazının içeriği boş.", "error"); ta.focus(); return; }
+        if (f.cover.value === "__upload" && !uploadFile) { say("Yüklemek için bir fotoğraf seç.", "error"); return; }
+        btn.disabled = true; say("Yayınlanıyor…");
         try {
-          const file = f.coverFile.files[0];
-          if (file) {
-            const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-            const path = "assets/" + slug(f.title.value) + "-" + Date.now() + "." + ext;
-            await gh(`/repos/${SITE.repo}/contents/${path}`, { method: "PUT", body: JSON.stringify({ message: "Add cover: " + f.title.value, content: await fileToB64(file) }) });
-            f.cover.insertAdjacentHTML("beforeend", `<option value="${path}">${esc(file.name)}</option>`);
-            f.cover.value = path; f.coverFile.value = ""; update();
+          let coverPath = f.cover.value;
+          if (coverPath === "__upload") {
+            const ext = (uploadFile.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+            coverPath = "assets/" + (slug(f.title.value) || "kapak") + "-" + Date.now() + "." + ext;
+            await gh(`/repos/${SITE.repo}/contents/${coverPath}`, { method: "PUT", body: JSON.stringify({ message: "Add cover: " + f.title.value, content: await fileToB64(uploadFile) }) });
           }
+          const post = buildPost(coverPath);
           const cur = await gh(`/repos/${SITE.repo}/contents/js/posts.js`);
           const text = b64decode(cur.content);
           const m = text.match(/const POSTS = \[\r?\n/);
           if (!m) throw new Error("posts.js beklenen formatta değil.");
           const at = m.index + m[0].length;
-          const updated = text.slice(0, at) + $("#code").textContent + "\n" + text.slice(at);
-          await gh(`/repos/${SITE.repo}/contents/js/posts.js`, { method: "PUT", body: JSON.stringify({ message: "New post: " + f.title.value, content: b64encodeText(updated), sha: cur.sha }) });
-          const url = "post.html?id=" + encodeURIComponent(slug(f.title.value));
-          msg.className = "hint ok";
-          msg.innerHTML = `✓ Yayınlandı! 1–2 dakika içinde sitede görünür: <a href="${url}">yazıyı aç</a>`;
+          await gh(`/repos/${SITE.repo}/contents/js/posts.js`, { method: "PUT", body: JSON.stringify({ message: "New post: " + post.title, content: b64encodeText(text.slice(0, at) + codeFor(post) + "\n" + text.slice(at)), sha: cur.sha }) });
+          POSTS.push(post);
           try { localStorage.removeItem("aeronotes_draft"); } catch {}
+          say(`✓ <b>Yayınlandı!</b> 1–2 dakika içinde sitede görünür → <a href="post.html?id=${encodeURIComponent(post.id)}">yazıyı aç</a>`, "ok");
+          f.title.value = ""; ta.value = ""; f.excerpt.value = ""; window.scrollTo({ top: 0 });
         } catch (err) {
-          msg.className = "hint error"; msg.textContent = "Yayınlanamadı: " + err.message;
-          if (/bad credentials/i.test(err.message)) { auth.clear(); }
+          say("Yayınlanamadı: " + esc(err.message), "error");
+          if (/bad credentials/i.test(err.message)) auth.clear();
         } finally { btn.disabled = false; }
       });
 
       // keep an unsent draft in this browser
-      const fields = ["title", "excerpt", "category", "cover", "content"];
-      try { const d = JSON.parse(localStorage.getItem("aeronotes_draft") || "null"); if (d) fields.forEach((k) => d[k] && (f[k].value = d[k])); } catch {}
-      f.addEventListener("input", () => { try { localStorage.setItem("aeronotes_draft", JSON.stringify(Object.fromEntries(fields.map((k) => [k, f[k].value])))); } catch {} });
-      $("#copyBtn").addEventListener("click", async () => {
-        try { await navigator.clipboard.writeText($("#code").textContent); $("#copyBtn").textContent = "Copied!"; }
-        catch { $("#copyBtn").textContent = "Select & copy manually"; }
-        setTimeout(() => ($("#copyBtn").textContent = "Copy code"), 1800);
-      });
-      if (SITE.repo) {
-        const a = $("#ghLink");
-        a.href = `https://github.com/${SITE.repo}/edit/main/js/posts.js`;
-        a.hidden = false;
-      }
-      update();
+      const keys = ["title", "excerpt", "category", "content"];
+      try {
+        const d = JSON.parse(localStorage.getItem("aeronotes_draft") || "null");
+        if (d) { keys.forEach((k) => d[k] && (f[k].value = d[k])); if (d.cover && d.cover !== "__upload") f.cover.value = d.cover; }
+      } catch {}
+      let timer;
+      const saveDraft = () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          try { localStorage.setItem("aeronotes_draft", JSON.stringify({ ...Object.fromEntries(keys.map((k) => [k, f[k].value])), cover: f.cover.value })); $("#saveState").textContent = "✓ Taslak kaydedildi"; } catch {}
+        }, 400);
+      };
+      f.addEventListener("input", saveDraft);
+      f.addEventListener("change", saveDraft);
     }
   };
 

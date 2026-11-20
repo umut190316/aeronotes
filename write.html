@@ -14,56 +14,45 @@
 </head>
 <body data-page="write">
 <header class="site-header" id="site-header"></header>
-<main class="container">
-  <div class="page-head">
-    <h1>Yeni yazı</h1>
-    <p>Formu doldur, sağdaki önizlemeye bak, sonra <strong>Yayınla</strong>'ya bas. Yazı 1–2 dakika içinde sitede görünür. <a class="hint" href="login.html?setup">Parolayı değiştir</a></p>
-  </div>
-  <div class="write">
-    <form id="writeForm" autocomplete="off" onsubmit="return false">
-      <div class="field"><label for="title">Başlık</label><input id="title" name="title" placeholder="e.g. Hypersonic Flight: Challenges Ahead"></div>
-      <div class="field"><label for="excerpt">Kısa özet</label><input id="excerpt" name="excerpt" placeholder="One sentence shown on cards"></div>
-      <div class="row">
-        <div class="field"><label for="category">Kategori</label><select id="category" name="category"></select></div>
-        <div class="field"><label for="date">Tarih</label><input id="date" name="date" type="date"></div>
-      </div>
-      <div class="field">
-        <label for="cover">Kapak görseli</label>
-        <select id="cover" name="cover">
-          <option value="assets/wing.svg">Wing (aviation)</option>
-          <option value="assets/rocket.svg">Rocket launch</option>
-          <option value="assets/engine.svg">Jet engine</option>
-          <option value="assets/satellite.svg">Satellite</option>
-          <option value="assets/airfoil.svg">Airfoil / aerodynamics</option>
-        </select>
-        <label class="hint" for="coverFile" style="margin-top:6px">…ya da kendi fotoğrafını yükle (yayınlarken yüklenir):</label>
-        <input type="file" id="coverFile" name="coverFile" accept="image/*">
-      </div>
-      <div class="field">
-        <label for="content">İçerik</label>
-        <span class="hint">## Başlık · **kalın** · *italik* · - liste · &gt; alıntı · [link](https://…)</span>
-        <textarea id="content" name="content" placeholder="Write your article…&#10;&#10;## A section heading&#10;&#10;A paragraph with **bold** and *italic* text.&#10;&#10;- a list item&#10;- another item"></textarea>
-      </div>
-      <div class="publish-bar">
+<main class="container editor">
+  <form id="writeForm" autocomplete="off" onsubmit="return false">
+    <div class="ed-bar">
+      <span class="hint" id="saveState">Taslak otomatik kaydedilir</span>
+      <span class="ed-actions">
+        <button class="btn ghost" type="button" id="previewBtn">Önizle</button>
         <button class="btn" type="button" id="publishBtn">Yayınla</button>
-        <span id="publishMsg" class="hint"></span>
-      </div>
-      <details class="output">
-        <summary class="hint">Gelişmiş: oluşan kod</summary>
-        <div style="display:flex;gap:8px;margin:8px 0">
-          <a class="btn ghost" id="ghLink" target="_blank" rel="noopener" hidden>posts.js'i GitHub'da aç</a>
-          <button class="btn ghost" type="button" id="copyBtn">Copy code</button>
-        </div>
-        <pre id="code"></pre>
-      </details>
-    </form>
-    <div>
-      <div class="preview">
-        <div class="preview-title" id="pvTitle"></div>
-        <div class="prose" id="pvBody"></div>
-      </div>
+      </span>
     </div>
-  </div>
+    <p id="publishMsg" class="hint ed-msg"></p>
+
+    <div id="editPane">
+      <input class="ed-title" name="title" placeholder="Başlık" aria-label="Başlık">
+
+      <div class="ed-label">Kategori</div>
+      <div class="ed-chips" id="cats"></div>
+
+      <div class="ed-label">Kapak</div>
+      <div class="ed-covers" id="covers"></div>
+
+      <div class="ed-toolbar" id="toolbar" aria-label="Biçimlendirme">
+        <button type="button" data-md="h" title="Ara başlık">Başlık</button>
+        <button type="button" data-md="b" title="Kalın"><b>K</b></button>
+        <button type="button" data-md="i" title="İtalik"><i>İ</i></button>
+        <button type="button" data-md="ul" title="Liste">• Liste</button>
+        <button type="button" data-md="q" title="Alıntı">❝ Alıntı</button>
+        <button type="button" data-md="a" title="Link">🔗 Link</button>
+      </div>
+      <textarea class="ed-body" name="content" placeholder="Yazmaya başla…" aria-label="İçerik"></textarea>
+
+      <details class="ed-more">
+        <summary>Diğer ayarlar</summary>
+        <div class="field"><label for="excerpt">Kısa özet <span class="hint">(boş bırakırsan otomatik oluşur)</span></label><input id="excerpt" name="excerpt"></div>
+        <div class="field"><label for="date">Tarih</label><input id="date" name="date" type="date"></div>
+        <p class="hint"><a href="login.html?setup">Parolayı değiştir</a></p>
+      </details>
+    </div>
+  </form>
+  <article id="previewPane" hidden></article>
 </main>
 <footer class="site-footer" id="site-footer"></footer>
 <script src="js/posts.js"></script>
