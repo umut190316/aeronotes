@@ -180,8 +180,14 @@
       </div></div>`;
   }
 
+  function followBox() {
+    if (!SITE.linkedin) return "";
+    return `<div class="follow-box"><p>Get notified when a new article is out.</p>
+      <a class="btn btn-li" href="${esc(SITE.linkedin)}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM3 9.5h4V21H3V9.5Zm6.5 0h3.8v1.6h.06c.53-1 1.83-2.06 3.77-2.06 4.03 0 4.77 2.65 4.77 6.1V21h-4v-5.2c0-1.24-.02-2.84-1.73-2.84-1.73 0-2 1.35-2 2.75V21h-4V9.5Z"/></svg><span>Follow on LinkedIn</span></a></div>`;
+  }
+
   function footer() {
-    return `<div class="container"><span>© ${new Date().getFullYear()} ${esc(SITE.name)} · Written by ${esc(SITE.author)}</span>
+    return `<div class="container"><span>© ${new Date().getFullYear()} ${esc(SITE.name)} · Written by ${esc(SITE.author)}${SITE.linkedin ? ` · <a href="${esc(SITE.linkedin)}" target="_blank" rel="noopener">LinkedIn</a>` : ""}</span>
       <span>${esc(SITE.tagline)}${auth.on ? "" : ' · <a href="login.html">Author login</a>'}</span></div>`;
   }
 
@@ -362,6 +368,7 @@
         <img src="${esc(featured.cover)}" alt="">
         <div class="hero-body"><span class="chip">${esc(featured.tag || featured.category)}</span>
         <h1>${esc(featured.title)}</h1><p>${esc(featured.excerpt)}</p>${meta(featured, true)}</div></a>`;
+      if ($("#follow")) $("#follow").innerHTML = followBox();
       $("#categories").innerHTML = CATEGORIES.map((c) => {
         const n = POSTS.filter((p) => p.category === c).length;
         return `<li><a href="articles.html?category=${encodeURIComponent(c)}">${ICONS[c] || ""}<span>${esc(c)}</span><span class="count">${n || ""}</span></a></li>`;
@@ -410,6 +417,7 @@
           <a href="https://www.facebook.com/sharer/sharer.php?u=${enc(shareUrl)}" target="_blank" rel="noopener">Facebook</a>
           ${navigator.share ? `<button type="button" id="nativeShare">${ICONS.share} More…</button>` : ""}
         </div>
+        ${followBox()}
         <nav class="post-nav">${older ? `<a class="link-arrow" href="post.html?id=${encodeURIComponent(older.id)}">${ICONS.arrowLeft} Older</a>` : "<span></span>"}
         ${newer ? `<a class="link-arrow" href="post.html?id=${encodeURIComponent(newer.id)}">Newer ${ICONS.arrow}</a>` : "<span></span>"}</nav>
         <section class="comments" id="comments">

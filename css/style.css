@@ -360,3 +360,11 @@ img.about-avatar.photo { object-fit: cover; object-position: 40% 25%; display: b
 .tb-select { font: inherit; font-size: 14px; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 5px 6px; color: var(--ink); cursor: pointer; }
 .tb-font { max-width: 170px; }
 .tb-size { width: 72px; text-align: center; }
+
+/* Follow on LinkedIn */
+.follow-box { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
+.follow-box p { color: var(--muted); font-size: 14px; margin: 0 0 10px; }
+.btn-li { background: #0a66c2; width: 100%; justify-content: center; }
+.btn-li:hover { background: #004182; }
+.btn-li svg { width: 18px; height: 18px; }
+.share + .follow-box { max-width: 420px; }
