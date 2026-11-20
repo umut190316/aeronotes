@@ -157,6 +157,66 @@
     });
   }
 
+  /* Read / rewrite js/posts.js in the repo (used for publish, edit and delete) */
+  async function loadRemotePosts() {
+    const cur = await gh(`/repos/${SITE.repo}/contents/js/posts.js`);
+    const text = b64decode(cur.content);
+    const m = text.match(/const POSTS = \[\r?\n/);
+    if (!m) throw new Error("posts.js beklenen formatta değil.");
+    const posts = new Function(text + "\n;return POSTS;")();
+    return { sha: cur.sha, prefix: text.slice(0, m.index + m[0].length), posts };
+  }
+  const POST_KEYS = ["id", "title", "excerpt", "category", "tag", "date", "readTime", "cover", "featured"];
+  function postToCode(p) {
+    const keys = [...POST_KEYS.filter((k) => k in p), ...Object.keys(p).filter((k) => !POST_KEYS.includes(k) && k !== "content")];
+    const lines = keys.map((k) => "    " + k + ": " + JSON.stringify(p[k]) + ",").join("\n");
+    let body = String(p.content || "").replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$\{/g, "\\${");
+    if (!body.startsWith("\n")) body = "\n" + body;
+    if (!body.endsWith("\n")) body += "\n";
+    return "  {\n" + lines + "\n    content: `" + body + "`\n  },";
+  }
+  async function saveRemotePosts(remote, posts, message) {
+    const text = remote.prefix + posts.map(postToCode).join("\n") + "\n];\n";
+    await gh(`/repos/${SITE.repo}/contents/js/posts.js`, { method: "PUT", body: JSON.stringify({ message, content: b64encodeText(text), sha: remote.sha }) });
+  }
+
+  /* ---------- Comments ---------- */
+  const timeAgo = (iso) => {
+    const d = new Date(iso.replace(" ", "T") + "Z");
+    return isNaN(d) ? "" : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  };
+  async function comments(postId) {
+    const list = $("#cList"), form = $("#cForm"), msg = $("#cMsg");
+    const draw = (items) => {
+      $("#cCount").textContent = items.length ? "(" + items.length + ")" : "";
+      list.innerHTML = items.length
+        ? items.map((c) => `<div class="c-item"><div class="c-head"><span class="avatar">${esc(initials(c.name))}</span><b>${esc(c.name)}</b><span class="hint">${timeAgo(c.created_at)}</span></div><p>${esc(c.text).replace(/\n/g, "<br>")}</p></div>`).join("")
+        : '<p class="hint">No comments yet — be the first!</p>';
+    };
+    try {
+      const r = await fetch("/api/comments?post=" + encodeURIComponent(postId));
+      if (!r.ok) throw 0;
+      draw((await r.json()).comments || []);
+    } catch { list.innerHTML = '<p class="hint">Comments could not be loaded.</p>'; }
+
+    try { const n = localStorage.getItem("aeronotes_cname"); if (n) form.name.value = n; } catch {}
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = e.submitter; btn.disabled = true;
+      msg.className = "hint"; msg.textContent = "Sending…";
+      try {
+        const r = await fetch("/api/comments", { method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ post: postId, name: form.name.value, text: form.text.value, website: form.website.value }) });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.error || "Something went wrong.");
+        try { localStorage.setItem("aeronotes_cname", form.name.value.trim()); } catch {}
+        form.text.value = "";
+        msg.className = "hint ok"; msg.textContent = "✓ Thank you! Your comment will appear after the author approves it.";
+      } catch (err) { msg.className = "hint error"; msg.textContent = err.message; }
+      finally { btn.disabled = false; }
+    });
+  }
+
   /* ---------- Pages ---------- */
   const pages = {
     home() {
@@ -202,7 +262,20 @@
         <h1>${esc(p.title)}</h1><p class="lead">${esc(p.excerpt)}</p>${meta(p, true)}</header>
         <div class="prose">${md(p.content)}</div></article>
         <nav class="post-nav">${older ? `<a class="link-arrow" href="post.html?id=${encodeURIComponent(older.id)}">${ICONS.arrowLeft} Older</a>` : "<span></span>"}
-        ${newer ? `<a class="link-arrow" href="post.html?id=${encodeURIComponent(newer.id)}">Newer ${ICONS.arrow}</a>` : "<span></span>"}</nav>`;
+        ${newer ? `<a class="link-arrow" href="post.html?id=${encodeURIComponent(newer.id)}">Newer ${ICONS.arrow}</a>` : "<span></span>"}</nav>
+        <section class="comments" id="comments">
+          <h2>Comments <span class="count" id="cCount"></span></h2>
+          <div id="cList" class="c-list"><p class="hint">Loading comments…</p></div>
+          <form id="cForm" class="c-form" autocomplete="on">
+            <h3>Leave a comment</h3>
+            <div class="field"><label for="cName">Your name</label><input id="cName" name="name" maxlength="60" autocomplete="name" required></div>
+            <div class="field"><label for="cText">Your comment</label><textarea id="cText" name="text" maxlength="2000" rows="5" required></textarea></div>
+            <input name="website" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true">
+            <button class="btn" type="submit">Send comment</button>
+            <p id="cMsg" class="hint"></p>
+          </form>
+        </section>`;
+      comments(p.id);
     },
 
     about() {
@@ -286,14 +359,17 @@
     write() {
       if (!auth.on) { location.replace("login.html"); return; }
       const f = $("#writeForm"), msg = $("#publishMsg");
+      const editId = new URLSearchParams(location.search).get("edit");
+      const editing = editId ? POSTS.find((p) => p.id === editId) : null;
       const COVERS = [["assets/wing.webp", "Kanat"], ["assets/rocket.webp", "Roket"], ["assets/engine.webp", "Motor"], ["assets/satellite.webp", "Uydu"], ["assets/airfoil.webp", "Kanat profili"]];
+      if (editing && !COVERS.some(([s]) => s === editing.cover)) COVERS.unshift([editing.cover, "Mevcut kapak"]);
       const slug = (s) => s.toLowerCase().replace(/ı/g, "i").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       const say = (text, kind) => { msg.className = "hint ed-msg" + (kind ? " " + kind : ""); msg.innerHTML = text; };
       let uploadFile = null, uploadURL = "";
 
       // category chips + cover thumbnails
       $("#cats").innerHTML = CATEGORIES.map((c, i) => `<label><input type="radio" name="category" value="${esc(c)}" ${i ? "" : "checked"}><span>${esc(c)}</span></label>`).join("");
-      $("#covers").innerHTML = COVERS.map(([src, name], i) => `<label title="${name}"><input type="radio" name="cover" value="${src}" ${i ? "" : "checked"}><span class="thumb"><img src="${src}" alt="${name}"></span></label>`).join("") +
+      $("#covers").innerHTML = COVERS.map(([src, name], i) => `<label title="${name}"><input type="radio" name="cover" value="${esc(src)}" ${i ? "" : "checked"}><span class="thumb"><img src="${esc(src)}" alt="${name}"></span></label>`).join("") +
         `<label title="Kendi fotoğrafın"><input type="radio" name="cover" value="__upload"><span class="thumb upload" id="uploadThumb"><span><b>+</b>Fotoğraf yükle</span></span></label>
          <input type="file" id="coverFile" accept="image/*" hidden>`;
       const fileInput = $("#coverFile");
@@ -335,44 +411,51 @@
 
       const plain = (t) => t.replace(/\]\([^)]*\)/g, "]").replace(/[#>*`\[\]_]/g, "").replace(/^\s*-\s/gm, "").replace(/\s+/g, " ").trim();
       const autoExcerpt = () => { const p = plain(ta.value); return p.length > 160 ? p.slice(0, 157).replace(/\s\S*$/, "") + "…" : p; };
-      const uniqueId = (base) => { base = base || "yazi"; let id = base, n = 2; while (POSTS.some((p) => p.id === id)) id = base + "-" + n++; return id; };
+      const uniqueId = (base, list) => { base = base || "yazi"; let id = base, n = 2; while (list.some((p) => p.id === id)) id = base + "-" + n++; return id; };
 
-      function buildPost(coverPath) {
+      function fieldsFrom(coverPath) {
         const words = ta.value.trim().split(/\s+/).filter(Boolean).length;
         return {
-          id: uniqueId(slug(f.title.value)),
           title: f.title.value.trim() || "Başlıksız",
           excerpt: f.excerpt.value.trim() || autoExcerpt(),
           category: f.category.value,
           date: f.date.value,
           readTime: Math.max(1, Math.round(words / 200)),
-          cover: coverPath
+          cover: coverPath,
+          content: "\n" + ta.value.trim() + "\n"
         };
       }
-      const codeFor = (post) => {
-        const fields = Object.entries(post).map(([k, v]) => `    ${k}: ${JSON.stringify(v)},`).join("\n");
-        const body = ta.value.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$\{/g, "\\${");
-        return "  {\n" + fields + "\n    content: `\n" + body + "\n`\n  },";
-      };
+
+      // edit mode: load the existing post into the editor
+      if (editing) {
+        document.title = "Düzenle · " + SITE.name;
+        f.title.value = editing.title; f.excerpt.value = editing.excerpt || ""; f.date.value = editing.date;
+        f.category.value = editing.category; f.cover.value = editing.cover;
+        ta.value = String(editing.content || "").trim();
+        $("#publishBtn").textContent = "Kaydet";
+        $("#saveState").innerHTML = `Düzenleniyor: <b>${esc(editing.title)}</b>`;
+      } else if (editId) {
+        say("Bu yazı bulunamadı. Yeni yazı olarak devam edebilirsin.", "error");
+      }
 
       // preview toggle
       $("#previewBtn").addEventListener("click", () => {
         if (!$("#previewPane").hidden) { $("#previewPane").hidden = true; $("#editPane").hidden = false; $("#previewBtn").textContent = "Önizle"; return; }
         const cover = f.cover.value === "__upload" ? uploadURL : f.cover.value;
-        const post = buildPost(cover);
+        const post = fieldsFrom(cover);
         $("#previewPane").innerHTML = `<span class="chip">${esc(post.category)}</span><h1>${esc(post.title)}</h1>${meta(post, true)}
           ${cover ? `<div class="pv-cover"><img src="${esc(cover)}" alt=""></div>` : ""}<div class="prose">${md(ta.value) || '<p class="hint">Henüz içerik yok.</p>'}</div>`;
         $("#previewPane").hidden = false; $("#editPane").hidden = true; $("#previewBtn").textContent = "Düzenle";
         window.scrollTo({ top: 0 });
       });
 
-      // publish
+      // publish / save
       $("#publishBtn").addEventListener("click", async () => {
         const btn = $("#publishBtn");
         if (!f.title.value.trim()) { say("Önce bir başlık yaz.", "error"); f.title.focus(); return; }
         if (!ta.value.trim()) { say("Yazının içeriği boş.", "error"); ta.focus(); return; }
         if (f.cover.value === "__upload" && !uploadFile) { say("Yüklemek için bir fotoğraf seç.", "error"); return; }
-        btn.disabled = true; say("Yayınlanıyor…");
+        btn.disabled = true; say(editing ? "Kaydediliyor…" : "Yayınlanıyor…");
         try {
           let coverPath = f.cover.value;
           if (coverPath === "__upload") {
@@ -380,22 +463,31 @@
             coverPath = "assets/" + (slug(f.title.value) || "kapak") + "-" + Date.now() + "." + ext;
             await gh(`/repos/${SITE.repo}/contents/${coverPath}`, { method: "PUT", body: JSON.stringify({ message: "Add cover: " + f.title.value, content: await fileToB64(uploadFile) }) });
           }
-          const post = buildPost(coverPath);
-          const cur = await gh(`/repos/${SITE.repo}/contents/js/posts.js`);
-          const text = b64decode(cur.content);
-          const m = text.match(/const POSTS = \[\r?\n/);
-          if (!m) throw new Error("posts.js beklenen formatta değil.");
-          const at = m.index + m[0].length;
-          await gh(`/repos/${SITE.repo}/contents/js/posts.js`, { method: "PUT", body: JSON.stringify({ message: "New post: " + post.title, content: b64encodeText(text.slice(0, at) + codeFor(post) + "\n" + text.slice(at)), sha: cur.sha }) });
-          POSTS.push(post);
+          const remote = await loadRemotePosts();
+          const data = fieldsFrom(coverPath);
+          let post;
+          if (editing) {
+            const i = remote.posts.findIndex((p) => p.id === editing.id);
+            if (i < 0) throw new Error("Bu yazı artık sitede yok (silinmiş olabilir).");
+            post = { ...remote.posts[i], ...data };
+            remote.posts[i] = post;
+            await saveRemotePosts(remote, remote.posts, "Edit post: " + post.title);
+          } else {
+            post = { id: uniqueId(slug(f.title.value), remote.posts), ...data };
+            await saveRemotePosts(remote, [post, ...remote.posts], "New post: " + post.title);
+            POSTS.push(post);
+          }
           try { localStorage.removeItem("aeronotes_draft"); } catch {}
-          say(`✓ <b>Yayınlandı!</b> 1–2 dakika içinde sitede görünür → <a href="post.html?id=${encodeURIComponent(post.id)}">yazıyı aç</a>`, "ok");
-          f.title.value = ""; ta.value = ""; f.excerpt.value = ""; window.scrollTo({ top: 0 });
+          say(`✓ <b>${editing ? "Kaydedildi!" : "Yayınlandı!"}</b> 1–2 dakika içinde sitede görünür → <a href="post.html?id=${encodeURIComponent(post.id)}">yazıyı aç</a> · <a href="manage.html">Yazılarım</a>`, "ok");
+          if (!editing) { f.title.value = ""; ta.value = ""; f.excerpt.value = ""; }
+          window.scrollTo({ top: 0 });
         } catch (err) {
-          say("Yayınlanamadı: " + esc(err.message), "error");
+          say((editing ? "Kaydedilemedi: " : "Yayınlanamadı: ") + esc(err.message), "error");
           if (/bad credentials/i.test(err.message)) auth.clear();
         } finally { btn.disabled = false; }
       });
+
+      if (editing) return; // drafts are only for new posts
 
       // keep an unsent draft in this browser
       const keys = ["title", "excerpt", "category", "content"];
@@ -412,6 +504,83 @@
       };
       f.addEventListener("input", saveDraft);
       f.addEventListener("change", saveDraft);
+    },
+
+    manage() {
+      if (!auth.on) { location.replace("login.html"); return; }
+      const list = $("#mList"), msg = $("#mMsg");
+      const say = (text, kind) => { msg.className = "hint ed-msg" + (kind ? " " + kind : ""); msg.innerHTML = text; };
+      const api = async (path, opts = {}) => {
+        const r = await fetch(path, { ...opts, headers: { "content-type": "application/json", Authorization: "Bearer " + auth.get(), ...(opts.headers || {}) } });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(r.status === 401 ? "Oturum geçersiz, tekrar giriş yap." : d.error || "Hata " + r.status);
+        return d;
+      };
+      let tab = "posts", allComments = null, posts = sorted.slice();
+      const titleOf = (id) => (POSTS.find((p) => p.id === id) || {}).title || id;
+
+      async function loadComments() {
+        try {
+          allComments = (await api("/api/comments?all=1")).comments || [];
+          const n = allComments.filter((c) => c.status === "pending").length;
+          $("#nPending").innerHTML = n ? `<span class="badge">${n}</span>` : "";
+        } catch (err) { allComments = []; say("Yorumlar yüklenemedi: " + esc(err.message), "error"); }
+      }
+
+      function draw() {
+        $("#tabs").querySelectorAll("button").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
+        if (tab === "posts") {
+          list.innerHTML = posts.length ? posts.map((p) => `<div class="c-item m-post" data-id="${esc(p.id)}">
+              <img src="${esc(p.cover)}" alt="">
+              <div><b>${esc(p.title)}</b><div class="hint">${esc(p.category)} · ${formatDate(p.date)}</div>
+              <div class="c-actions">
+                <a class="btn ghost" href="post.html?id=${encodeURIComponent(p.id)}">Görüntüle</a>
+                <a class="btn ghost" href="write.html?edit=${encodeURIComponent(p.id)}">✏️ Düzenle</a>
+                <button class="btn danger" data-act="delpost">🗑 Sil</button>
+              </div></div></div>`).join("") : '<p class="hint">Henüz yazı yok.</p>';
+          return;
+        }
+        if (!allComments) { list.innerHTML = '<p class="hint">Yükleniyor…</p>'; return; }
+        const items = allComments.filter((c) => c.status === tab);
+        list.innerHTML = items.length ? items.map((c) => `<div class="c-item ${c.status}" data-cid="${c.id}">
+            <div class="c-head"><span class="avatar">${esc(initials(c.name))}</span><b>${esc(c.name)}</b><span class="hint">${timeAgo(c.created_at)}</span></div>
+            <div class="c-post">Yazı: <a href="post.html?id=${encodeURIComponent(c.post)}#comments">${esc(titleOf(c.post))}</a></div>
+            <p>${esc(c.text).replace(/\n/g, "<br>")}</p>
+            <div class="c-actions">${c.status === "pending" ? '<button class="btn" data-act="approve">✓ Onayla</button>' : ""}<button class="btn danger" data-act="delc">🗑 Sil</button></div>
+          </div>`).join("") : `<p class="hint">${tab === "pending" ? "Bekleyen yorum yok 🎉" : "Henüz yayında yorum yok."}</p>`;
+      }
+
+      $("#tabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; tab = b.dataset.tab; say(""); draw(); });
+
+      list.addEventListener("click", async (e) => {
+        const b = e.target.closest("button[data-act]"); if (!b) return;
+        const act = b.dataset.act;
+        try {
+          if (act === "delpost") {
+            const id = b.closest("[data-id]").dataset.id;
+            if (!confirm(`"${titleOf(id)}" yazısını silmek istediğine emin misin?\n\nYazı sitede kaybolur. (Geçmiş GitHub'da kalır, gerekirse geri getirilebilir.)`)) return;
+            b.disabled = true; say("Siliniyor…");
+            const remote = await loadRemotePosts();
+            const next = remote.posts.filter((p) => p.id !== id);
+            if (next.length === remote.posts.length) throw new Error("Yazı zaten silinmiş.");
+            await saveRemotePosts(remote, next, "Delete post: " + titleOf(id));
+            posts = posts.filter((p) => p.id !== id);
+            say("✓ Yazı silindi. 1–2 dakika içinde siteden kalkar.", "ok");
+          } else {
+            const cid = Number(b.closest("[data-cid]").dataset.cid);
+            if (act === "delc" && !confirm("Bu yorumu silmek istediğine emin misin? Geri alınamaz.")) return;
+            b.disabled = true;
+            if (act === "approve") await api("/api/comments", { method: "PATCH", body: JSON.stringify({ id: cid }) });
+            else await api("/api/comments?id=" + cid, { method: "DELETE" });
+            say(act === "approve" ? "✓ Yorum onaylandı, artık sitede görünüyor." : "✓ Yorum silindi.", "ok");
+            await loadComments();
+          }
+          draw();
+        } catch (err) { say("Olmadı: " + esc(err.message), "error"); b.disabled = false; }
+      });
+
+      draw();
+      loadComments().then(draw);
     }
   };
 

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Yönetim · AeroNotes</title>
+  <meta name="robots" content="noindex">
+  <meta name="description" content="AeroNotes — a student blog on aerospace and space by Umutcan Bakırcı.">
+  <meta name="author" content="Umutcan Bakırcı">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="manage">
+<header class="site-header" id="site-header"></header>
+<main class="container editor">
+  <div class="ed-bar">
+    <strong>Yönetim</strong>
+    <span class="ed-actions"><a class="btn" href="write.html">✏️ Yeni yazı</a></span>
+  </div>
+  <div class="filters" id="tabs" style="margin-top:16px">
+    <button class="filter active" data-tab="posts">Yazılarım</button>
+    <button class="filter" data-tab="pending">Bekleyen yorumlar <span id="nPending"></span></button>
+    <button class="filter" data-tab="approved">Yayındaki yorumlar</button>
+  </div>
+  <p id="mMsg" class="hint ed-msg"></p>
+  <div id="mList" class="c-list"><p class="hint">Yükleniyor…</p></div>
+</main>
+<footer class="site-footer" id="site-footer"></footer>
+<script src="js/posts.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
