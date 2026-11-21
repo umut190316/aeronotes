@@ -1,9 +1,11 @@
 import { loadPosts } from "../../lib/seo.js";
+import { isOffensive } from "../../lib/badwords.js";
 /*
  * AeroNotes comment API (Cloudflare Pages Function + D1)
  *
  * Readers:  GET  /api/comments?post=<id>         → approved comments of a post (with parent_id for replies)
- *           POST /api/comments {post,name,text,parent?} → new comment or reply (waits for approval)
+ *           POST /api/comments {post,name,text,parent?} → new comment or reply, published at once.
+ *           Offensive words are refused (422, code "offensive"); comments with links wait for approval.
  *           Replies are one level deep, like Instagram: a reply to a reply hangs under the same top comment.
  *           If the author posts with their key, the comment is approved at once and marked as the author's.
  * Author:   GET    /api/comments?all=1           → recent comments incl. pending   (Authorization: Bearer <GitHub key>)
@@ -78,6 +80,8 @@ export async function onRequest({ request, env }) {
     } catch { /* if the check fails, still accept: comments are moderated anyway */ }
     if (name.length < 2 || name.length > 60) return json({ error: "Please enter your name (2–60 characters)." }, 400);
     if (text.length < 2 || text.length > 2000) return json({ error: "Your comment must be 2–2000 characters." }, 400);
+    if (isOffensive(name) || isOffensive(text))
+      return json({ error: "Please don't use offensive or insulting words. Your comment was not posted.", code: "offensive" }, 422);
 
     // Replies: attach to an approved comment of the same article (replies to replies go under the top comment)
     let parent = null;
@@ -94,9 +98,12 @@ export async function onRequest({ request, env }) {
     const recent = await db.prepare("SELECT COUNT(*) AS n FROM comments WHERE ip_hash = ? AND created_at > datetime('now', '-10 minutes')").bind(ipHash).first();
     if (recent && recent.n >= 5) return json({ error: "Too many comments in a short time. Please try again in a few minutes." }, 429);
 
+    // Published straight away; only comments with links are held for review (typical spam)
+    const hasLink = /https?:\/\/|www\.|\b[a-z0-9-]+\.(com|net|org|ru|xyz|top|info|io|ly)\b/i.test(text + " " + name);
+    const publish = author || !hasLink;
     const res = await db.prepare("INSERT INTO comments (post, name, text, ip_hash, parent_id, is_author, status) VALUES (?, ?, ?, ?, ?, ?, ?)")
-      .bind(post, name, text, ipHash, parent, author ? 1 : 0, author ? "approved" : "pending").run();
-    return json({ ok: true, approved: author, id: res.meta && res.meta.last_row_id });
+      .bind(post, name, text, ipHash, parent, author ? 1 : 0, publish ? "approved" : "pending").run();
+    return json({ ok: true, approved: publish, id: res.meta && res.meta.last_row_id });
   }
 
   if (request.method === "PATCH" || request.method === "DELETE") {

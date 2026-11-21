@@ -396,7 +396,7 @@
     const list = $("#cList"), form = $("#cForm"), msg = $("#cMsg");
     const isAuthor = auth.on;
     const authHeader = () => (isAuthor ? { Authorization: "Bearer " + auth.get() } : {});
-    const savedName = () => { try { return localStorage.getItem("aeronotes_cname") || ""; } catch { return ""; } };
+    const warn = (el, text, kind) => { el.className = "hint" + (kind ? " " + kind : ""); el.textContent = text; };
     const open = new Set(); // threads whose replies are expanded
 
     const one = (c, reply) => `<div class="c-item${reply ? " c-reply" : ""}${c.is_author ? " c-by-author" : ""}" data-cid="${c.id}">
@@ -428,12 +428,12 @@
     }
 
     async function send(body, msgEl) {
+      if (String(body.name || "").trim().length < 2) { const e = new Error("Please enter your name first."); e.kind = "error"; throw e; }
       const r = await fetch("/api/comments", { method: "POST", headers: { "content-type": "application/json", ...authHeader() }, body: JSON.stringify({ post: postId, ...body }) });
       const data = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(data.error || "Something went wrong.");
-      if (!isAuthor) try { localStorage.setItem("aeronotes_cname", String(body.name).trim()); } catch {}
+      if (!r.ok) { const e = new Error(data.error || "Something went wrong."); e.kind = data.code === "offensive" ? "alert" : "error"; throw e; }
       if (data.approved) { await load(); return true; }
-      msgEl.className = "hint ok"; msgEl.textContent = "✓ Thank you! It will appear after the author approves it.";
+      warn(msgEl, "✓ Thanks! Comments with links are checked before they appear.", "ok");
       return false;
     }
 
@@ -446,7 +446,7 @@
       const thread = btn.closest(".c-thread"), slot = thread.querySelector(".c-reply-slot");
       list.querySelectorAll(".c-reply-slot").forEach((x) => { if (x !== slot) x.innerHTML = ""; });
       slot.innerHTML = `<form class="c-form c-reply-form">
-          ${isAuthor ? "" : `<input name="name" maxlength="60" placeholder="Your name" autocomplete="name" required value="${esc(savedName())}">`}
+          ${isAuthor ? "" : `<input name="name" maxlength="60" placeholder="Please enter your name" autocomplete="name" required>`}
           <textarea name="text" maxlength="2000" rows="3" required>@${esc(btn.dataset.name)} </textarea>
           <input name="website" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true">
           <div class="c-reply-actions"><button class="btn" type="submit">Reply</button><button class="btn ghost" type="button" data-cancel>Cancel</button></div>
@@ -457,12 +457,12 @@
       f.onsubmit = async (ev) => {
         ev.preventDefault();
         const b = f.querySelector('button[type="submit"]'), m = f.querySelector("p"); b.disabled = true;
-        m.className = "hint"; m.textContent = "Sending…";
+        warn(m, "Sending…");
         try {
           open.add(+thread.dataset.thread);
           const done = await send({ parent: btn.dataset.reply, name: isAuthor ? SITE.author : f.name.value, text: t.value, website: f.website.value }, m);
           if (done) return; t.value = ""; f.querySelector("[data-cancel]").textContent = "Close";
-        } catch (err) { m.className = "hint error"; m.textContent = err.message; }
+        } catch (err) { warn(m, err.message, err.kind || "error"); }
         finally { b.disabled = false; }
       };
     });
@@ -470,16 +470,16 @@
     await load();
 
     if (isAuthor) { form.name.value = SITE.author; form.name.readOnly = true; }
-    else if (savedName()) form.name.value = savedName();
+    form.name.placeholder = "Please enter your name";
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const btn = e.submitter; btn.disabled = true;
-      msg.className = "hint"; msg.textContent = "Sending…";
+      warn(msg, "Sending…");
       try {
         const done = await send({ name: form.name.value, text: form.text.value, website: form.website.value }, msg);
         form.text.value = "";
-        if (done) { msg.className = "hint ok"; msg.textContent = "✓ Published."; }
-      } catch (err) { msg.className = "hint error"; msg.textContent = err.message; }
+        if (done) warn(msg, "✓ Your comment is live.", "ok");
+      } catch (err) { warn(msg, err.message, err.kind || "error"); }
       finally { btn.disabled = false; }
     });
   }
@@ -585,7 +585,7 @@
             <div class="field"><label for="cText">Your comment</label><textarea id="cText" name="text" maxlength="2000" rows="5" required></textarea></div>
             <input name="website" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true">
             <button class="btn" type="submit">Send comment</button>
-            <p class="hint small">Your name and comment are shown after approval. See the <a href="/privacy">privacy note</a>.</p>
+            <p class="hint small">Your name and comment are shown publicly. Please be respectful. See the <a href="/privacy">privacy note</a>.</p>
             <p id="cMsg" class="hint"></p>
           </form>
         </section>`;
