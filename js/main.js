@@ -65,6 +65,31 @@
     await gh(`/repos/${SITE.repo}/contents/auth.json`, { method: "PUT", body: JSON.stringify({ message, content: b64encodeText(JSON.stringify(vault, null, 2) + "\n"), ...(cur ? { sha: cur.sha } : {}) }) });
   }
 
+  /* Centre-crop an uploaded photo to a square JPEG of size px. */
+  async function squareImage(file, size) {
+    const img = await new Promise((ok, fail) => { const im = new Image(); im.onload = () => ok(im); im.onerror = fail; im.src = URL.createObjectURL(file); });
+    const s = Math.min(img.naturalWidth, img.naturalHeight), out = Math.min(size, s);
+    const c = document.createElement("canvas"); c.width = c.height = out;
+    c.getContext("2d").drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 2, s, s, 0, 0, out, out);
+    return await new Promise((ok, fail) => c.toBlob((b) => (b ? ok(b) : fail(new Error("canvas"))), "image/jpeg", 0.88));
+  }
+
+  /* Tap-to-zoom for any image marked [data-zoom] (profile photo, article images). */
+  function openZoom(src, alt) {
+    const box = document.createElement("div");
+    box.className = "zoom";
+    box.innerHTML = `<img src="${esc(src)}" alt="${esc(alt || "")}"><button class="zoom-x" aria-label="Close">✕</button>`;
+    const close = () => { box.classList.remove("on"); setTimeout(() => box.remove(), 200); document.removeEventListener("keydown", onKey); };
+    const onKey = (e) => { if (e.key === "Escape") close(); };
+    box.addEventListener("click", close); document.addEventListener("keydown", onKey);
+    document.body.appendChild(box); requestAnimationFrame(() => box.classList.add("on"));
+  }
+  document.addEventListener("click", (e) => {
+    const img = e.target.closest("img[data-zoom], article .prose img");
+    if (!img || img.closest("a")) return;
+    e.preventDefault(); openZoom(img.currentSrc || img.src, img.alt);
+  });
+
   /* Downscale an uploaded photo to a JPEG no wider/taller than max px. */
   async function shrinkImage(file, max) {
     const img = await new Promise((ok, fail) => { const im = new Image(); im.onload = () => ok(im); im.onerror = fail; im.src = URL.createObjectURL(file); });
@@ -516,7 +541,7 @@
     },
 
     about() {
-      if (SITE.avatar) $("#aboutAvatar").outerHTML = authorAvatar("about-avatar");
+      if (SITE.avatar) { $("#aboutAvatar").outerHTML = authorAvatar("about-avatar"); const a = $(".about-avatar"); if (a) { a.dataset.zoom = ""; a.title = "Tap to enlarge"; } }
       else $("#aboutAvatar").textContent = initials(SITE.author);
       if (SITE.linkedin) $(".about-links").insertAdjacentHTML("beforeend", `<a class="btn btn-li" href="${esc(SITE.linkedin)}" target="_blank" rel="noopener">Follow on LinkedIn</a>`);
       $("#statPosts").textContent = POSTS.length;
@@ -979,6 +1004,7 @@
         }
         if (tab === "security") { drawSecurity(); return; }
         if (tab === "schedule") { drawSchedule(); return; }
+        if (tab === "profile") { drawProfile(); return; }
         if (!allComments) { list.innerHTML = '<p class="hint">Yükleniyor…</p>'; return; }
         const items = allComments.filter((c) => c.status === tab);
         list.innerHTML = items.length ? items.map((c) => `<div class="c-item ${c.status}" data-cid="${c.id}">
@@ -1051,6 +1077,39 @@
             say("✓ Silindi.", "ok"); drawSchedule();
           } catch (err) { say("Olmadı: " + esc(err.message), "error"); b.disabled = false; }
         }));
+      }
+
+      // ---- Profile photo (SITE.avatar in js/posts.js)
+      function drawProfile() {
+        list.innerHTML = `<div class="c-item sec prof">
+            <b>Profil fotoğrafı</b>
+            <p class="hint">About sayfasında, yazı kartlarında ve manşette görünür. Kare olarak ortadan kırpılır.</p>
+            <div class="prof-row">
+              <img id="profPrev" class="prof-prev" src="${esc(SITE.avatar || "")}" alt="" ${SITE.avatar ? "" : "hidden"}>
+              <label class="btn ghost prof-pick">Fotoğraf seç<input type="file" id="profFile" accept="image/*" hidden></label>
+            </div>
+            <div class="c-actions"><button class="btn" id="profSave" disabled>Kaydet</button></div></div>`;
+        let blob = null;
+        $("#profFile").onchange = async (e) => {
+          const f = e.target.files[0]; if (!f) return;
+          try { blob = await squareImage(f, 600); $("#profPrev").src = URL.createObjectURL(blob); $("#profPrev").hidden = false; $("#profSave").disabled = false; }
+          catch { say("Bu fotoğraf okunamadı. JPG veya PNG dene.", "error"); }
+        };
+        $("#profSave").onclick = async () => {
+          const btn = $("#profSave"); btn.disabled = true; say("Yükleniyor…");
+          try {
+            const path = "assets/profile-" + Date.now() + ".jpg";
+            await gh(`/repos/${SITE.repo}/contents/${path}`, { method: "PUT", body: JSON.stringify({ message: "New profile photo", content: await fileToB64(blob) }) });
+            const cur = await gh(`/repos/${SITE.repo}/contents/js/posts.js`);
+            const text = b64decode(cur.content);
+            const next = /^(\s*avatar:\s*)"[^"]*"/m.test(text)
+              ? text.replace(/^(\s*avatar:\s*)"[^"]*"/m, (m, a) => a + JSON.stringify(path))
+              : text.replace(/const SITE = \{\n/, (m) => m + "  avatar: " + JSON.stringify(path) + ", // profil fotoğrafı\n");
+            await gh(`/repos/${SITE.repo}/contents/js/posts.js`, { method: "PUT", body: JSON.stringify({ message: "Use new profile photo", content: b64encodeText(next), sha: cur.sha }) });
+            SITE.avatar = path;
+            say("✓ Profil fotoğrafı güncellendi. 1–2 dakika içinde sitede görünür.", "ok");
+          } catch (err) { say("Olmadı: " + esc(err.message), "error"); btn.disabled = false; }
+        };
       }
 
       async function drawSecurity() {

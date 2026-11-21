@@ -477,3 +477,21 @@ img.about-avatar.photo { object-fit: cover; object-position: 40% 25%; display: b
 .fc-controls { display: flex; align-items: center; justify-content: center; gap: 22px; margin-top: 18px; }
 .fc-controls .icon-btn { width: 46px; height: 46px; border-radius: 50%; background: var(--soft); }
 .fc-actions { display: flex; justify-content: center; gap: 10px; margin-top: 12px; }
+
+/* About buttons stacked */
+.about-links { flex-direction: column; align-items: stretch; gap: 10px; }
+.about-links .btn { justify-content: center; width: 100%; }
+.about-links .btn-li { order: -1; }
+.about-avatar.photo, img[data-zoom], article .prose img { cursor: zoom-in; }
+
+/* Image zoom */
+.zoom { position: fixed; inset: 0; z-index: 1000; background: rgba(5, 14, 30, .88); display: grid; place-items: center; padding: 24px; opacity: 0; transition: opacity .2s; cursor: zoom-out; }
+.zoom.on { opacity: 1; }
+.zoom img { max-width: min(92vw, 900px); max-height: 86vh; border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,.5); transform: scale(.94); transition: transform .2s; }
+.zoom.on img { transform: none; }
+.zoom-x { position: absolute; top: 16px; right: 16px; width: 44px; height: 44px; border-radius: 50%; border: 0; background: rgba(255,255,255,.15); color: #fff; font-size: 20px; cursor: pointer; }
+
+/* Profile tab */
+.prof-row { display: flex; align-items: center; gap: 18px; margin: 14px 0; flex-wrap: wrap; }
+.prof-prev { width: 110px; height: 110px; border-radius: 50%; object-fit: cover; box-shadow: var(--shadow); }
+.prof-pick { cursor: pointer; }
