@@ -394,31 +394,91 @@
   };
   async function comments(postId) {
     const list = $("#cList"), form = $("#cForm"), msg = $("#cMsg");
-    const draw = (items) => {
-      $("#cCount").textContent = items.length ? "(" + items.length + ")" : "";
-      list.innerHTML = items.length
-        ? items.map((c) => `<div class="c-item"><div class="c-head"><span class="avatar">${esc(initials(c.name))}</span><b>${esc(c.name)}</b><span class="hint">${timeAgo(c.created_at)}</span></div><p>${esc(c.text).replace(/\n/g, "<br>")}</p></div>`).join("")
-        : '<p class="hint">No comments yet. Be the first!</p>';
-    };
-    try {
-      const r = await fetch("/api/comments?post=" + encodeURIComponent(postId));
-      if (!r.ok) throw 0;
-      draw((await r.json()).comments || []);
-    } catch { list.innerHTML = '<p class="hint">Comments could not be loaded.</p>'; }
+    const isAuthor = auth.on;
+    const authHeader = () => (isAuthor ? { Authorization: "Bearer " + auth.get() } : {});
+    const savedName = () => { try { return localStorage.getItem("aeronotes_cname") || ""; } catch { return ""; } };
+    const open = new Set(); // threads whose replies are expanded
 
-    try { const n = localStorage.getItem("aeronotes_cname"); if (n) form.name.value = n; } catch {}
+    const one = (c, reply) => `<div class="c-item${reply ? " c-reply" : ""}${c.is_author ? " c-by-author" : ""}" data-cid="${c.id}">
+        <div class="c-head">${c.is_author ? authorAvatar("avatar") : `<span class="avatar">${esc(initials(c.name))}</span>`}<b>${esc(c.name)}</b>${c.is_author ? '<span class="c-badge">Author</span>' : ""}<span class="hint">${timeAgo(c.created_at)}</span></div>
+        <p>${esc(c.text).replace(/\n/g, "<br>")}</p>
+        <button class="c-reply-btn" data-reply="${c.id}" data-name="${esc(c.name)}">Reply</button></div>`;
+
+    const draw = (items) => {
+      const tops = items.filter((c) => !c.parent_id);
+      const kids = {};
+      items.filter((c) => c.parent_id).forEach((c) => (kids[c.parent_id] = kids[c.parent_id] || []).push(c));
+      $("#cCount").textContent = items.length ? "(" + items.length + ")" : "";
+      list.innerHTML = tops.length ? tops.map((c) => {
+        const r = kids[c.id] || [], show = r.length <= 2 || open.has(c.id);
+        return `<div class="c-thread" data-thread="${c.id}">${one(c)}
+          ${r.length ? `<div class="c-replies">${show ? r.map((x) => one(x, true)).join("") : ""}
+            ${show ? "" : `<button class="c-more" data-more="${c.id}"><span></span>View ${r.length} replies</button>`}</div>` : ""}
+          <div class="c-reply-slot"></div></div>`;
+      }).join("") : '<p class="hint">No comments yet. Be the first!</p>';
+      list._items = items;
+    };
+
+    async function load() {
+      try {
+        const r = await fetch("/api/comments?post=" + encodeURIComponent(postId));
+        if (!r.ok) throw 0;
+        draw((await r.json()).comments || []);
+      } catch { list.innerHTML = '<p class="hint">Comments could not be loaded.</p>'; }
+    }
+
+    async function send(body, msgEl) {
+      const r = await fetch("/api/comments", { method: "POST", headers: { "content-type": "application/json", ...authHeader() }, body: JSON.stringify({ post: postId, ...body }) });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.error || "Something went wrong.");
+      if (!isAuthor) try { localStorage.setItem("aeronotes_cname", String(body.name).trim()); } catch {}
+      if (data.approved) { await load(); return true; }
+      msgEl.className = "hint ok"; msgEl.textContent = "✓ Thank you! It will appear after the author approves it.";
+      return false;
+    }
+
+    // Reply: inline form under the thread, like Instagram
+    list.addEventListener("click", (e) => {
+      const more = e.target.closest("[data-more]");
+      if (more) { open.add(+more.dataset.more); draw(list._items); return; }
+      const btn = e.target.closest("[data-reply]");
+      if (!btn) return;
+      const thread = btn.closest(".c-thread"), slot = thread.querySelector(".c-reply-slot");
+      list.querySelectorAll(".c-reply-slot").forEach((x) => { if (x !== slot) x.innerHTML = ""; });
+      slot.innerHTML = `<form class="c-form c-reply-form">
+          ${isAuthor ? "" : `<input name="name" maxlength="60" placeholder="Your name" autocomplete="name" required value="${esc(savedName())}">`}
+          <textarea name="text" maxlength="2000" rows="3" required>@${esc(btn.dataset.name)} </textarea>
+          <input name="website" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true">
+          <div class="c-reply-actions"><button class="btn" type="submit">Reply</button><button class="btn ghost" type="button" data-cancel>Cancel</button></div>
+          <p class="hint"></p></form>`;
+      const f = slot.querySelector("form"), t = f.text;
+      t.focus(); t.setSelectionRange(t.value.length, t.value.length);
+      f.querySelector("[data-cancel]").onclick = () => (slot.innerHTML = "");
+      f.onsubmit = async (ev) => {
+        ev.preventDefault();
+        const b = f.querySelector('button[type="submit"]'), m = f.querySelector("p"); b.disabled = true;
+        m.className = "hint"; m.textContent = "Sending…";
+        try {
+          open.add(+thread.dataset.thread);
+          const done = await send({ parent: btn.dataset.reply, name: isAuthor ? SITE.author : f.name.value, text: t.value, website: f.website.value }, m);
+          if (done) return; t.value = ""; f.querySelector("[data-cancel]").textContent = "Close";
+        } catch (err) { m.className = "hint error"; m.textContent = err.message; }
+        finally { b.disabled = false; }
+      };
+    });
+
+    await load();
+
+    if (isAuthor) { form.name.value = SITE.author; form.name.readOnly = true; }
+    else if (savedName()) form.name.value = savedName();
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const btn = e.submitter; btn.disabled = true;
       msg.className = "hint"; msg.textContent = "Sending…";
       try {
-        const r = await fetch("/api/comments", { method: "POST", headers: { "content-type": "application/json" },
-          body: JSON.stringify({ post: postId, name: form.name.value, text: form.text.value, website: form.website.value }) });
-        const data = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(data.error || "Something went wrong.");
-        try { localStorage.setItem("aeronotes_cname", form.name.value.trim()); } catch {}
+        const done = await send({ name: form.name.value, text: form.text.value, website: form.website.value }, msg);
         form.text.value = "";
-        msg.className = "hint ok"; msg.textContent = "✓ Thank you! Your comment will appear after the author approves it.";
+        if (done) { msg.className = "hint ok"; msg.textContent = "✓ Published."; }
       } catch (err) { msg.className = "hint error"; msg.textContent = err.message; }
       finally { btn.disabled = false; }
     });
@@ -1010,7 +1070,7 @@
         const items = allComments.filter((c) => c.status === tab);
         list.innerHTML = items.length ? items.map((c) => `<div class="c-item ${c.status}" data-cid="${c.id}">
             <div class="c-head"><span class="avatar">${esc(initials(c.name))}</span><b>${esc(c.name)}</b><span class="hint">${timeAgo(c.created_at)}</span></div>
-            <div class="c-post">Yazı: <a href="${postUrl(c.post)}#comments">${esc(titleOf(c.post))}</a></div>
+            <div class="c-post">Yazı: <a href="${postUrl(c.post)}#comments">${esc(titleOf(c.post))}</a>${c.parent_id ? ` · ↳ <b>${esc(c.parent_name || "bir yorum")}</b> adlı kişiye yanıt` : ""}${c.is_author ? " · senin yorumun" : ""}</div>
             <p>${esc(c.text).replace(/\n/g, "<br>")}</p>
             <div class="c-actions">${c.status === "pending" ? '<button class="btn" data-act="approve">✓ Onayla</button>' : ""}<button class="btn danger" data-act="delc">🗑 Sil</button></div>
           </div>`).join("") : `<p class="hint">${tab === "pending" ? "Bekleyen yorum yok 🎉" : "Henüz yayında yorum yok."}</p>`;
