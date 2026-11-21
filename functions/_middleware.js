@@ -121,6 +121,7 @@ async function sitemap(context) {
     { loc: origin + "/about" },
     { loc: origin + "/quiz" },
     { loc: origin + "/flashcards" },
+    { loc: origin + "/privacy" },
     ...posts.map((p) => ({ loc: origin + postPath(p.id), lastmod: isoDate(p.updated) || isoDate(p.date), image: absUrl(origin, p.cover || ogImageOf(p)), title: p.title }))
   ];
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -153,6 +154,9 @@ export async function onRequest(context) {
 
   try {
     if (path.startsWith("/api/")) return context.next();
+    // Never serve repository/tooling files as pages
+    if (/^\/(\.git|\.wrangler|node_modules|functions|lib)(\/|$)|^\/(wrangler\.toml|README\.md|\.gitignore|\.nojekyll)$/.test(path))
+      return new Response("Not found", { status: 404, headers: { "content-type": "text/plain" } });
 
     const m = path.match(/^\/article\/([^/]+)$/);
     if (m) return await articlePage(context, decodeURIComponent(m[1]));

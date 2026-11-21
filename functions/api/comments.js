@@ -1,3 +1,4 @@
+import { loadPosts } from "../../lib/seo.js";
 /*
  * AeroNotes comment API (Cloudflare Pages Function + D1)
  *
@@ -65,6 +66,10 @@ export async function onRequest({ request, env }) {
     const name = String(body.name || "").trim().replace(/\s+/g, " ");
     const text = String(body.text || "").trim();
     if (!post) return json({ error: "Article not found." }, 400);
+    try {
+      const posts = await loadPosts(env, request);
+      if (posts.length && !posts.some((p) => p.id === post)) return json({ error: "Article not found." }, 400);
+    } catch { /* if the check fails, still accept: comments are moderated anyway */ }
     if (name.length < 2 || name.length > 60) return json({ error: "Please enter your name (2–60 characters)." }, 400);
     if (text.length < 2 || text.length > 2000) return json({ error: "Your comment must be 2–2000 characters." }, 400);
 

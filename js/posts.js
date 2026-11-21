@@ -1,5 +1,5 @@
 /*
- * AeroNotes — yazılar burada.
+ * AeroNotes: yazılar burada.
  * Yeni yazı eklemek için: siteden "Write" sayfasını açın, formu doldurun,
  * oluşan kodu kopyalayıp aşağıdaki POSTS listesinin EN ÜSTÜNE yapıştırın.
  * İçerik (content) basit Markdown destekler: ## başlık, **kalın**, *italik*, - liste, > alıntı, [link](url)
@@ -11,13 +11,13 @@ const SITE = {
   author: "Umutcan Bakırcı",
   avatar: "assets/profile.webp", // profil fotoğrafı
   linkedin: "https://www.linkedin.com/in/umutcanbak05", // "Follow" butonları
-  repo: "umut190316/aeronotes" // örn: "kullaniciadi/aeronotes" — Write sayfasındaki GitHub düzenleme linki için
+  repo: "umut190316/aeronotes" // örn: "kullaniciadi/aeronotes". Write sayfasındaki GitHub düzenleme linki için
 };
 
 const CATEGORIES = ["Aviation", "Space", "Engines", "History", "Inspiring People", "World News", "Sustainability", "Technology"];
 
 // Yayın takvimi: Yönetim > Takvim sekmesinden düzenlenir.
-const SCHEDULE = [{"date":"2026-11-23","title":"How Does Turbojet Engine Work ?","category":"Engines","note":"We are going to learn the principles of a Turbojet Engine.","image":"assets/schedule/turbojet-cutaway.jpg"}];
+const SCHEDULE = [{"date":"2026-11-23","title":"How Does a Turbojet Engine Work?","category":"Engines","note":"We are going to learn the working principles of a turbojet engine.","image":"assets/schedule/turbojet-cutaway.jpg"}];
 
 const POSTS = [
   {
@@ -27,12 +27,12 @@ const POSTS = [
     category: "Aviation",
     tag: "Aerospace",
     date: "2026-11-16",
-    readTime: 6,
+    readTime: 2,
     cover: "assets/wing.webp",
     ogImage: "assets/og/morphing-winglets.jpg",
     featured: true,
     content: `
-Every commercial airliner flies through a wide range of conditions on a single trip: a heavy climb-out, a long cruise, and a slow, high-lift approach. Yet the wingtip — the region that decides a large share of **induced drag** — is usually a fixed piece of carbon fibre designed for one compromise point. Morphing winglets try to remove that compromise.
+Every commercial airliner flies through a wide range of conditions on a single trip: a heavy climb-out, a long cruise, and a slow, high-lift approach. Yet the wingtip, the region that decides a large share of **induced drag**, is usually a fixed piece of carbon fibre designed for one compromise point. Morphing winglets try to remove that compromise.
 
 ## Why wingtips matter
 
@@ -44,9 +44,9 @@ Classic winglets reduce the strength of this vortex by effectively increasing th
 
 A morphing winglet changes its geometry in flight. Research concepts include:
 
-- **Variable cant angle** — the winglet rotates about a hinge line, from near-vertical to near-horizontal.
-- **Variable toe (twist)** — the winglet's incidence changes to re-distribute load.
-- **Compliant trailing edges** — flexible skins that change camber without discrete hinges.
+- **Variable cant angle**: the winglet rotates about a hinge line, from near-vertical to near-horizontal.
+- **Variable toe (twist)**: the winglet's incidence changes to re-distribute load.
+- **Compliant trailing edges**: flexible skins that change camber without discrete hinges.
 
 > The goal is not only lower fuel burn, but also using the winglet as an active control surface for gust and manoeuvre load alleviation.
 
@@ -60,24 +60,24 @@ Actuators add mass, power demand and failure modes. Certification authorities ne
 
 ## Outlook
 
-Studies suggest fuel savings in the range of 1–3% beyond a fixed winglet, which is significant over the 25-year life of an airliner. With folding wingtips already in service on new wide-bodies, the hardware for moving wingtips is no longer science fiction — the next step is making them move *smartly*.
+Studies suggest fuel savings in the range of 1–3% beyond a fixed winglet, which is significant over the 25-year life of an airliner. With folding wingtips already in service on new wide-bodies, the hardware for moving wingtips is no longer science fiction. The next step is making them move *smartly*.
 `
   },
   {
     id: "reusable-launch-vehicles",
     title: "Reusable Launch Vehicles: Current Status and Future Outlook",
-    excerpt: "From propulsive landings to rapid turnaround — where reusability stands today and what comes next.",
+    excerpt: "From propulsive landings to rapid turnaround: where reusability stands today and what comes next.",
     category: "Space",
     date: "2026-11-10",
-    readTime: 7,
+    readTime: 1,
     cover: "assets/rocket.webp",
     ogImage: "assets/og/reusable-launch-vehicles.jpg",
     content: `
-For most of the space age, rockets were thrown away after a single flight. Imagine scrapping an airliner after each trip — that was the economics of access to orbit. Reusability changes the equation by turning the most expensive hardware into an asset rather than a consumable.
+For most of the space age, rockets were thrown away after a single flight. Imagine scrapping an airliner after each trip. That was the economics of access to orbit. Reusability changes the equation by turning the most expensive hardware into an asset rather than a consumable.
 
 ## Where we are
 
-Propulsively landed first stages are now routine. Boosters return to land or to a drone ship, are inspected, refurbished and flown again — some of them well over twenty times. Fairing recovery has also become standard practice.
+Propulsively landed first stages are now routine. Boosters return to land or to a drone ship, are inspected, refurbished and flown again, some of them well over twenty times. Fairing recovery has also become standard practice.
 
 ## The hard part: the upper stage
 
@@ -93,7 +93,7 @@ Reusability only pays off when refurbishment is cheaper and faster than building
 
 ## Outlook
 
-Fully reusable two-stage systems are in active testing, and several companies around the world are developing reusable medium-lift launchers. If full reuse works, cost per kilogram to orbit could drop by another order of magnitude — enabling large constellations, orbital refuelling and, eventually, crewed missions beyond the Moon.
+Fully reusable two-stage systems are in active testing, and several companies around the world are developing reusable medium-lift launchers. If full reuse works, cost per kilogram to orbit could drop by another order of magnitude, enabling large constellations, orbital refuelling and, eventually, crewed missions beyond the Moon.
 `
   },
   {
@@ -102,7 +102,7 @@ Fully reusable two-stage systems are in active testing, and several companies ar
     excerpt: "What SAF is, how it is produced, and why it is the most realistic near-term lever for aviation's emissions.",
     category: "Engines",
     date: "2026-11-07",
-    readTime: 5,
+    readTime: 1,
     cover: "assets/engine.webp",
     ogImage: "assets/og/sustainable-aviation-fuel.jpg",
     content: `
@@ -114,10 +114,10 @@ SAF is a drop-in replacement for conventional Jet A-1. "Drop-in" means it can be
 
 ## Production pathways
 
-- **HEFA** — hydroprocessed esters and fatty acids, made from used cooking oil and animal fats. Mature, but feedstock-limited.
-- **Alcohol-to-Jet** — converts ethanol or isobutanol into jet fuel.
-- **Fischer–Tropsch** — gasifies biomass or waste into syngas, then synthesises hydrocarbons.
-- **Power-to-Liquid (e-fuels)** — combines green hydrogen with captured CO₂. Very scalable in theory, but energy-intensive and currently expensive.
+- **HEFA**: hydroprocessed esters and fatty acids, made from used cooking oil and animal fats. Mature, but feedstock-limited.
+- **Alcohol-to-Jet**: converts ethanol or isobutanol into jet fuel.
+- **Fischer–Tropsch**: gasifies biomass or waste into syngas, then synthesises hydrocarbons.
+- **Power-to-Liquid (e-fuels)**: combines green hydrogen with captured CO₂. Very scalable in theory, but energy-intensive and currently expensive.
 
 ## Life-cycle emissions
 
@@ -125,16 +125,16 @@ SAF still releases CO₂ when burned. The reduction comes from the *life cycle*:
 
 ## The bottleneck
 
-Cost (two to five times conventional fuel) and production volume are the main barriers. Blending mandates in Europe and incentive programmes elsewhere are creating demand — now production capacity needs to catch up.
+Cost (two to five times conventional fuel) and production volume are the main barriers. Blending mandates in Europe and incentive programmes elsewhere are creating demand. Now production capacity needs to catch up.
 `
   },
   {
     id: "small-satellites-earth-observation",
     title: "The Role of Small Satellites in Earth Observation",
-    excerpt: "CubeSats and smallsats are changing how often — and how cheaply — we can image our planet.",
+    excerpt: "CubeSats and smallsats are changing how often, and how cheaply, we can image our planet.",
     category: "Space",
     date: "2026-11-03",
-    readTime: 6,
+    readTime: 1,
     cover: "assets/satellite.webp",
     ogImage: "assets/og/small-satellites-earth-observation.jpg",
     content: `
@@ -142,7 +142,7 @@ Earth observation used to be the domain of large, expensive satellites built ove
 
 ## Why small?
 
-Small satellites — from 1U CubeSats (10 × 10 × 10 cm) to spacecraft of a few hundred kilograms — benefit from commercial electronics, standardised buses and rideshare launches. Lower cost per unit makes it possible to launch *many*, which is the key to high **revisit rates**.
+Small satellites, from 1U CubeSats (10 × 10 × 10 cm) to spacecraft of a few hundred kilograms, benefit from commercial electronics, standardised buses and rideshare launches. Lower cost per unit makes it possible to launch *many*, which is the key to high **revisit rates**.
 
 ## What they can do
 
@@ -166,11 +166,11 @@ The trend is toward tasking on demand, on-orbit processing and data fusion acros
     excerpt: "Beyond the equal-transit-time myth: pressure, circulation and the Kutta condition explained simply.",
     category: "Aviation",
     date: "2026-10-28",
-    readTime: 8,
+    readTime: 1,
     cover: "assets/airfoil.webp",
     ogImage: "assets/og/airfoil-basics-lift.jpg",
     content: `
-Almost everyone has heard that air over the top of a wing "has to travel further, so it goes faster". It is a tidy explanation — and it is wrong. Let's look at what actually happens.
+Almost everyone has heard that air over the top of a wing "has to travel further, so it goes faster". It is a tidy explanation, and it is wrong. Let's look at what actually happens.
 
 ## The equal-transit-time myth
 
@@ -182,7 +182,7 @@ Lift is the net result of the pressure distribution around the airfoil. The uppe
 
 ## Circulation and the Kutta condition
 
-A sharp trailing edge forces the flow to leave the airfoil smoothly — this is the **Kutta condition**. To satisfy it, the flow field develops a net circulation Γ around the airfoil. The Kutta–Joukowski theorem then gives lift per unit span:
+A sharp trailing edge forces the flow to leave the airfoil smoothly. This is the **Kutta condition**. To satisfy it, the flow field develops a net circulation Γ around the airfoil. The Kutta–Joukowski theorem then gives lift per unit span:
 
 > L′ = ρ · V∞ · Γ
 
@@ -194,7 +194,7 @@ Equivalently, the wing deflects air downward (downwash). By Newton's third law, 
 
 - Lift comes from pressure differences, produced by flow turning
 - Equal transit time is a myth
-- Circulation, Bernoulli and Newton are consistent descriptions — not competing theories
+- Circulation, Bernoulli and Newton are consistent descriptions, not competing theories
 `
   }
 ];

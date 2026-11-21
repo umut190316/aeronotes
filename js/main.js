@@ -252,7 +252,7 @@
 
   function footer() {
     return `<div class="container"><span>© ${new Date().getFullYear()} ${esc(SITE.name)} · Written by ${esc(SITE.author)}${SITE.linkedin ? ` · <a href="${esc(SITE.linkedin)}" target="_blank" rel="noopener">LinkedIn</a>` : ""}</span>
-      <span>${esc(SITE.tagline)}${auth.on ? "" : ' · <a href="login.html">Author login</a>'}</span></div>`;
+      <span><a href="/privacy">Privacy</a>${auth.on ? "" : ' · <a href="/login">Author login</a>'}</span></div>`;
   }
 
   function setupSearch() {
@@ -398,7 +398,7 @@
       $("#cCount").textContent = items.length ? "(" + items.length + ")" : "";
       list.innerHTML = items.length
         ? items.map((c) => `<div class="c-item"><div class="c-head"><span class="avatar">${esc(initials(c.name))}</span><b>${esc(c.name)}</b><span class="hint">${timeAgo(c.created_at)}</span></div><p>${esc(c.text).replace(/\n/g, "<br>")}</p></div>`).join("")
-        : '<p class="hint">No comments yet — be the first!</p>';
+        : '<p class="hint">No comments yet. Be the first!</p>';
     };
     try {
       const r = await fetch("/api/comments?post=" + encodeURIComponent(postId));
@@ -479,7 +479,7 @@
       const draw = () => {
         filters.innerHTML = ["All", ...CATEGORIES].map((c) => `<button class="filter ${c === current ? "active" : ""}" data-c="${esc(c)}">${esc(c)}</button>`).join("");
         const list = sorted.filter((p) => current === "All" || p.category === current);
-        grid.innerHTML = list.length ? list.map((p) => card(p, true)).join("") : '<div class="empty">No articles in this category yet — coming soon.</div>';
+        grid.innerHTML = list.length ? list.map((p) => card(p, true)).join("") : '<div class="empty">No articles in this category yet. Coming soon.</div>';
       };
       filters.addEventListener("click", (e) => {
         const b = e.target.closest("button"); if (!b) return;
@@ -499,7 +499,7 @@
       const font = FONTS[p.font] || FONTS.default; loadFont(p.font);
       const fs = font === FONTS.default ? "" : ` style="font-family:${font.family}"`;
       const shareUrl = location.origin + postUrl(p.id);
-      const enc = encodeURIComponent, shareText = p.title + " — " + SITE.name;
+      const enc = encodeURIComponent, shareText = p.title + " | " + SITE.name;
       const newer = sorted[i - 1], older = sorted[i + 1];
       $("#post").innerHTML = `<div class="post-hero"><img src="${esc(p.cover)}" alt="${esc(p.title)}"></div>
         <article><header class="post-head"><a class="chip" href="articles.html?category=${encodeURIComponent(p.category)}">${esc(p.category)}</a>
@@ -525,6 +525,7 @@
             <div class="field"><label for="cText">Your comment</label><textarea id="cText" name="text" maxlength="2000" rows="5" required></textarea></div>
             <input name="website" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true">
             <button class="btn" type="submit">Send comment</button>
+            <p class="hint small">Your name and comment are shown after approval. See the <a href="/privacy">privacy note</a>.</p>
             <p id="cMsg" class="hint"></p>
           </form>
         </section>`;
@@ -568,10 +569,10 @@
 
       // Is a password already set? (encrypted key published as auth.json)
       let vault = null;
-      try { const r = await fetch("auth.json?t=" + Date.now(), { cache: "no-store" }); if (r.ok) vault = await r.json(); } catch {}
       // Two-step login on? Then the vault is only handed out by the server after a correct code.
       let twofa = false;
       try { const r = await fetch("/api/auth", { cache: "no-store" }); if (r.ok) twofa = !!(await r.json()).twofa; } catch {}
+      if (!twofa) try { const r = await fetch("auth.json?t=" + Date.now(), { cache: "no-store" }); if (r.ok) vault = await r.json(); } catch {}
       if (twofa) { $("#codeField").hidden = false; $("#code").required = true; }
 
       const showSetup = () => {
