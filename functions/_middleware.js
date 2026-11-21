@@ -172,7 +172,7 @@ export async function onRequest(context) {
     if (path === "/quiz" || path === "/quiz.html")
       return await listingPage(context, "/quiz", { title: "Aviation & Space Quiz · " + SITE_NAME, description: "Test your aviation and space knowledge: 10 random questions per round from a bank of more than 1,500 on airports, airlines, aircraft, space missions and aerospace history." });
     if (path === "/flashcards" || path === "/flashcards.html")
-      return await listingPage(context, "/flashcards", { title: "Aerospace Flashcards · " + SITE_NAME, description: "Learn nearly 200 key aerospace terms with flip cards: aerodynamics, controls, propulsion, structures, operations, avionics and space." });
+      return await listingPage(context, "/flashcards", { title: "Aerospace Flashcards · " + SITE_NAME, description: "Learn more than 1,000 aerospace terms with flip cards: aerodynamics, propulsion, structures, operations, avionics, weather, airports, aircraft and space." });
     if (path === "/about" || path === "/about.html")
       return await listingPage(context, "/about", { title: "About · " + SITE_NAME, description: "About " + AUTHOR + ", the aerospace engineering student behind " + SITE_NAME + "." });
   } catch (err) {
