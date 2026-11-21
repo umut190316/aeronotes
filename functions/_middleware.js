@@ -61,7 +61,7 @@ async function articlePage(context, id) {
     image: [image],
     datePublished: isoDate(p.date),
     dateModified: isoDate(p.updated) || isoDate(p.date),
-    author: { "@type": "Person", name: AUTHOR, url: AUTHOR_URL },
+    author: { "@type": "Person", "@id": origin + "/about#author", name: AUTHOR, url: origin + "/about", sameAs: [AUTHOR_URL] },
     publisher: { "@type": "Person", name: AUTHOR, url: AUTHOR_URL },
     mainEntityOfPage: { "@type": "WebPage", "@id": url },
     articleSection: p.category,
@@ -102,13 +102,20 @@ async function listingPage(context, path, opts) {
   const posts = opts.list ? await loadPosts(env, request) : [];
   let rw = new HTMLRewriter()
     .on('meta[name="description"]', setAttr("content", opts.description))
-    .on("head", appendHead(headTags({ title: opts.title, description: opts.description, url: origin + path, image: absUrl(origin, DEFAULT_OG) })));
+    .on("head", appendHead(headTags({ title: opts.title, description: opts.description, url: origin + path, image: absUrl(origin, DEFAULT_OG),
+      extra: opts.ld ? `<script type="application/ld+json">${JSON.stringify(opts.ld(origin)).replace(/</g, "\\u003c")}</script>` : "" })));
   if (opts.list) rw = rw.on(opts.list, setHTML(articleListHTML(posts, opts.limit || 0)));
   const out = rw.transform(res);
   const headers = new Headers(out.headers);
   headers.set("cache-control", HTML_HEADERS["cache-control"]);
   return new Response(out.body, { status: out.status, headers });
 }
+
+const person = (origin) => ({ "@type": "Person", "@id": origin + "/about#author", name: AUTHOR, url: origin + "/about", jobTitle: "Aerospace engineering student", sameAs: [AUTHOR_URL], knowsAbout: ["Aerospace engineering", "Aerodynamics", "Aircraft propulsion", "Spaceflight", "Aviation history"] });
+const siteLd = (origin) => ({ "@context": "https://schema.org", "@graph": [
+  { "@type": "WebSite", "@id": origin + "/#website", url: origin + "/", name: SITE_NAME, description: SITE_DESC, inLanguage: "en", publisher: { "@id": origin + "/about#author" } },
+  person(origin)
+] });
 
 async function sitemap(context) {
   const { request, env } = context;
@@ -132,6 +139,40 @@ ${urls.map((u) => `  <url><loc>${esc(u.loc)}</loc>${u.lastmod ? `<lastmod>${u.la
   return new Response(xml, { headers: { "content-type": "application/xml; charset=utf-8", "cache-control": "public, max-age=300" } });
 }
 
+/* GEO: plain-text guides for AI assistants and LLM crawlers (llmstxt.org format) */
+async function llmsTxt(context, full) {
+  const { request, env } = context;
+  const origin = siteOrigin(env, request);
+  const posts = await loadPosts(env, request);
+  let out = `# ${SITE_NAME}
+
+> ${SITE_DESC} Articles explain aerospace engineering topics (aerodynamics, propulsion, space systems, aviation history) in clear English for students and enthusiasts.
+
+Author: ${AUTHOR}, aerospace engineering student (${AUTHOR_URL})
+Language: English
+License: please credit "${AUTHOR}, ${SITE_NAME}" and link to the article when quoting.
+
+## Articles
+
+${posts.map((p) => `- [${p.title}](${origin}${postPath(p.id)}): ${p.excerpt || ""} (${p.category || "General"}, ${p.date || ""})`).join("\n")}
+
+## Learn
+
+- [Aviation & Space Quiz](${origin}/quiz): 10 random questions per round from more than 1,500.
+- [Aerospace Flashcards](${origin}/flashcards): more than 1,000 aerospace terms with short definitions.
+
+## About
+
+- [About the author](${origin}/about)
+- [Privacy](${origin}/privacy)
+`;
+  if (full) {
+    out += "\n## Full text\n";
+    for (const p of posts) out += `\n### ${p.title}\n\nURL: ${origin}${postPath(p.id)}\nPublished: ${p.date || ""}${p.updated ? " · Updated: " + p.updated : ""}\nCategory: ${p.category || ""}\n\n${plainText(p.content)}\n`;
+  }
+  return new Response(out, { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=600" } });
+}
+
 function robots(context) {
   const origin = siteOrigin(context.env, context.request);
   const txt = `User-agent: *
@@ -142,6 +183,7 @@ Disallow: /manage
 Disallow: /api/
 
 Sitemap: ${origin}/sitemap.xml
+# AI guide: ${origin}/llms.txt
 `;
   return new Response(txt, { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=3600" } });
 }
@@ -168,9 +210,11 @@ export async function onRequest(context) {
     }
     if (path === "/sitemap.xml") return await sitemap(context);
     if (path === "/robots.txt") return robots(context);
+    if (path === "/llms.txt") return await llmsTxt(context, false);
+    if (path === "/llms-full.txt") return await llmsTxt(context, true);
 
     if (path === "/" || path === "/index.html" || path === "/index")
-      return await listingPage(context, "/", { title: SITE_NAME + " · " + SITE_TAGLINE, description: SITE_DESC, list: "#latest", limit: 6 });
+      return await listingPage(context, "/", { title: SITE_NAME + " · " + SITE_TAGLINE, description: SITE_DESC, list: "#latest", limit: 6, ld: siteLd });
     if (path === "/articles" || path === "/articles.html")
       return await listingPage(context, "/articles", { title: "All Articles · " + SITE_NAME, description: "Every AeroNotes article on aviation, space, engines, history and aerospace technology.", list: "#grid" });
     if (path === "/quiz" || path === "/quiz.html")
@@ -178,7 +222,7 @@ export async function onRequest(context) {
     if (path === "/flashcards" || path === "/flashcards.html")
       return await listingPage(context, "/flashcards", { title: "Aerospace Flashcards · " + SITE_NAME, description: "Learn more than 1,000 aerospace terms with flip cards: aerodynamics, propulsion, structures, operations, avionics, weather, airports, aircraft and space." });
     if (path === "/about" || path === "/about.html")
-      return await listingPage(context, "/about", { title: "About · " + SITE_NAME, description: "About " + AUTHOR + ", the aerospace engineering student behind " + SITE_NAME + "." });
+      return await listingPage(context, "/about", { title: "About · " + SITE_NAME, description: "About " + AUTHOR + ", the aerospace engineering student behind " + SITE_NAME + ".", ld: (o) => ({ "@context": "https://schema.org", "@type": "ProfilePage", mainEntity: person(o) }) });
   } catch (err) {
     // Never take the site down because of the SEO layer.
     console.error("seo middleware:", err && err.stack || err);

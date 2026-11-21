@@ -382,7 +382,7 @@
   }
   const renderContent = (p) => {
     if (p.format !== "html") return md(p.content);
-    const html = sanitize(p.content);
+    const html = sanitize(p.content).replace(/<img([^>]*?) alt=""/g, (m, a) => `<img${a} alt="${esc(p.title)}"`);
     Object.keys(FONTS).forEach((k) => { if (k !== "default" && html.toLowerCase().includes(firstFontName(FONTS[k].family))) loadFont(k); });
     return html;
   };
@@ -801,6 +801,12 @@
 
       // ---- photos & videos inside the text (inserted where the cursor is)
       const mediaBlock = (inner) => `<div class="media-block" contenteditable="false">${inner}</div><p><br></p>`;
+      // Tap a photo in the editor to edit its description (alt text)
+      ed.addEventListener("click", (e) => {
+        const img = e.target.closest("img"); if (!img) return;
+        const v = prompt("Görsel açıklaması (alt text). Kısa, İngilizce:", img.getAttribute("alt") || "");
+        if (v !== null) { img.setAttribute("alt", v.trim()); say("✓ Görsel açıklaması güncellendi.", "ok"); }
+      });
       async function uploadAsset(file, kind) {
         const ext = (file.name.split(".").pop() || "").toLowerCase().replace(/[^a-z0-9]/g, "") || (kind === "video" ? "mp4" : "jpg");
         const path = `assets/${kind}-${Date.now()}.${ext}`;
@@ -815,8 +821,10 @@
           const path = await uploadAsset(file, kind), blob = URL.createObjectURL(file);
           if (kind === "video") insertHTML(mediaBlock(`<video class="video-file" src="${blob}" data-path="${esc(path)}" controls playsinline></video>`));
           else {
-            const cap = (prompt("Fotoğrafın altına açıklama yazmak ister misin? (boş bırakabilirsin)") || "").trim();
-            insertHTML(mediaBlock(`<figure><img src="${blob}" data-path="${esc(path)}" alt="${esc(cap)}">${cap ? `<figcaption>${esc(cap)}</figcaption>` : ""}</figure>`));
+            const guess = file.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").replace(/\b(img|image|dsc|pxl|whatsapp|screenshot)\b.*$/i, "").trim();
+            const alt = (prompt("Görselde ne var? Kısa, İngilizce yaz (Google ve görme engelli okuyucular için).\nÖrn: Cutaway of a turbojet engine", guess) || "").trim();
+            const cap = (prompt("Fotoğrafın altında görünecek yazı (istersen boş bırak):", "") || "").trim();
+            insertHTML(mediaBlock(`<figure><img src="${blob}" data-path="${esc(path)}" alt="${esc(alt || cap)}">${cap ? `<figcaption>${esc(cap)}</figcaption>` : ""}</figure>`));
           }
           say(kind === "video" ? "✓ Video eklendi." : "✓ Fotoğraf eklendi.", "ok");
         } catch (err) { say("Yüklenemedi: " + esc(err.message), "error"); }

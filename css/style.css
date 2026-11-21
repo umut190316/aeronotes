@@ -541,3 +541,5 @@ img.about-avatar.photo { object-fit: cover; object-position: 40% 25%; display: b
 /* Red warning for refused comments */
 .hint.alert { display: block; color: #b42318; background: #fdecea; border: 1px solid #f5c2bd; border-radius: 10px; padding: 10px 12px; font-weight: 600; }
 .c-form input::placeholder, .c-form textarea::placeholder { color: #9aa4b2; }
+
+#editor img { cursor: pointer; }
