@@ -572,3 +572,8 @@ img.about-avatar.photo { object-fit: cover; object-position: 40% 25%; display: b
   .hero-grid .xbox { order: 3; grid-column: 1 / -1; max-height: 560px; }
 }
 .xbox .xbox-logo svg { width: 18px !important; height: 18px !important; display: block; margin: 0; color: #fff; }
+
+.xbox-tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.xbox-tabs::-webkit-scrollbar { display: none; }
+.xbox-tabs button { flex: none; border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 99px; padding: 5px 11px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.xbox-tabs button[aria-selected="true"] { background: #0f1419; border-color: #0f1419; color: #fff; }

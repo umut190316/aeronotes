@@ -520,24 +520,44 @@
         const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
         ["pointerdown", "touchstart", "wheel"].forEach((ev) => track.addEventListener(ev, stop, { passive: true }));
       }
-      // "Aviation on X": the author's X list, embedded with X's official widget (loaded only when visible)
-      if (SITE.xList && $("#xbox")) {
+      // "Aviation on X": official accounts, one at a time, switching every hour by itself.
+      // Readers can also pick an account. If SITE.xList is set, that X list is shown instead.
+      const X_ACCOUNTS = [["NASA", "NASA"], ["esa", "ESA"], ["SpaceX", "SpaceX"], ["Airbus", "Airbus"], ["Boeing", "Boeing"],
+        ["LockheedMartin", "Lockheed Martin"], ["BaykarTech", "Baykar"], ["DLR_en", "DLR"]];
+      if ($("#xbox")) {
         const box = $("#xbox"); box.hidden = false;
-        box.innerHTML = `<div class="xbox-head"><span class="xbox-logo">${ICONS.x}</span><div><b>Aviation on X</b><span>Live posts from people in aviation and space</span></div></div>
+        const useList = !!SITE.xList;
+        let pick = Math.floor(Date.now() / 3600000) % X_ACCOUNTS.length; // changes every hour
+        const urlOf = (k) => (useList ? SITE.xList : "https://x.com/" + X_ACCOUNTS[k][0]);
+        box.innerHTML = `<div class="xbox-head"><span class="xbox-logo">${ICONS.x}</span><div><b>Aviation on X</b><span>${useList ? "Live posts from people in aviation and space" : "Latest from aerospace agencies and companies"}</span></div></div>
+          ${useList ? "" : `<div class="xbox-tabs" role="tablist">${X_ACCOUNTS.map(([h, n], k) => `<button role="tab" data-k="${k}" aria-selected="${k === pick}">${esc(n)}</button>`).join("")}</div>`}
           <div class="xbox-feed" id="xfeed"><p class="hint">Loading posts…</p></div>
-          <a class="xbox-more" href="${esc(SITE.xList)}" target="_blank" rel="noopener">Open the list on X</a>`;
-        const start = () => {
-          const feed = $("#xfeed"), h = Math.max(320, feed.clientHeight || 480);
-          feed.innerHTML = `<a class="twitter-timeline" data-height="${h}" data-chrome="noheader nofooter noborders transparent" data-dnt="true" data-theme="light" href="${esc(SITE.xList)}"></a>`;
-          if (!document.querySelector('script[src*="platform.x.com/widgets.js"]')) {
-            const s = document.createElement("script"); s.async = true; s.src = "https://platform.x.com/widgets.js"; s.charset = "utf-8"; document.body.appendChild(s);
-          } else if (window.twttr && twttr.widgets) twttr.widgets.load(feed);
-          setTimeout(() => { if (!feed.querySelector("iframe")) feed.innerHTML = `<p class="hint">Posts could not be loaded here. <a href="${esc(SITE.xList)}" target="_blank" rel="noopener">See them on X</a>.</p>`; }, 10000);
+          <a class="xbox-more" id="xmore" href="${esc(urlOf(pick))}" target="_blank" rel="noopener">Open on X</a>`;
+        let loaded = false;
+        const render = () => {
+          const feed = $("#xfeed"), h = Math.max(300, feed.clientHeight || 460);
+          $("#xmore").href = urlOf(pick);
+          box.querySelectorAll(".xbox-tabs button").forEach((b) => b.setAttribute("aria-selected", String(+b.dataset.k === pick)));
+          feed.innerHTML = `<a class="twitter-timeline" data-height="${h}" data-chrome="noheader nofooter noborders transparent" data-dnt="true" data-theme="light" href="${esc(urlOf(pick))}"></a>`;
+          if (window.twttr && twttr.widgets) twttr.widgets.load(feed);
+          else if (!document.querySelector('script[src*="platform.x.com/widgets.js"]')) {
+            const sc = document.createElement("script"); sc.async = true; sc.src = "https://platform.x.com/widgets.js"; sc.charset = "utf-8"; document.body.appendChild(sc);
+          }
+          const mine = pick;
+          setTimeout(() => { if (mine === pick && !feed.querySelector("iframe")) feed.innerHTML = `<p class="hint">Posts could not be loaded here. <a href="${esc(urlOf(pick))}" target="_blank" rel="noopener">See them on X</a>.</p>`; }, 10000);
         };
+        box.addEventListener("click", (e) => {
+          const b = e.target.closest(".xbox-tabs button"); if (!b) return;
+          pick = +b.dataset.k; if (loaded) render();
+          b.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+        });
+        const start = () => { if (loaded) return; loaded = true; render(); };
         if ("IntersectionObserver" in window) {
-          const io = new IntersectionObserver((en) => { if (en.some((e) => e.isIntersecting)) { io.disconnect(); start(); } }, { rootMargin: "200px" });
+          const io = new IntersectionObserver((en) => { if (en.some((x) => x.isIntersecting)) { io.disconnect(); start(); } }, { rootMargin: "200px" });
           io.observe(box);
         } else start();
+        // keep it fresh for readers who leave the page open
+        setInterval(() => { if (!useList && loaded) { pick = (pick + 1) % X_ACCOUNTS.length; render(); } }, 3600000);
       }
 
       // Coming up: planned articles from SCHEDULE (past dates and already-published titles are hidden)
