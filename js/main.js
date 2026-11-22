@@ -535,8 +535,7 @@
         };
         box.innerHTML = `<div class="xbox-head"><span class="xbox-logo">${ICONS.rss}</span><div><b>Aerospace Live</b><span>Latest from agencies and companies, updated hourly</span></div></div>
           <div class="xbox-tabs" role="tablist"></div>
-          <div class="xbox-feed" id="xfeed"><p class="hint">Loading the latest news…</p></div>
-          <a class="xbox-more" id="xmore" target="_blank" rel="noopener"></a>`;
+          <div class="xbox-feed" id="xfeed"><p class="hint">Loading the latest news…</p></div>`;
         const render = () => {
           const list = data.sources, s = list[pick];
           box.querySelector(".xbox-tabs").innerHTML = list.map((t, k) => `<button role="tab" data-k="${k}" aria-selected="${k === pick}">${esc(t.name)}</button>`).join("");
@@ -545,7 +544,6 @@
             : `<p class="hint">No fresh news from ${esc(s.name)} right now.</p>`;
           const tabs = box.querySelector(".xbox-tabs"), on = tabs.querySelector('[aria-selected="true"]');
           if (on) tabs.scrollLeft = on.offsetLeft - tabs.offsetLeft - (tabs.clientWidth - on.offsetWidth) / 2;
-          const more = $("#xmore"); more.href = "https://x.com/" + s.x; more.innerHTML = `${ICONS.x} Follow ${esc(s.name)} on X`;
         };
         box.addEventListener("click", (e) => {
           const b = e.target.closest(".xbox-tabs button"); if (!b || !data) return;
