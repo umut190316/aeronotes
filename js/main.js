@@ -1,6 +1,7 @@
 /* AeroNotes — shared UI + page rendering */
 (function () {
   const ICONS = {
+    rss: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1.6" fill="currentColor"/></svg>',
     x: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>',
     logo: '<svg class="brand-mark" viewBox="0 0 615 255" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M4.5 250.1C7.6 247.2 111.1 191.1 117.9 188.6C136.6 181.9 167.9 175.1 198 171.4C219.8 168.6 324.2 169 310.5 171.7C283.8 177.1 212.4 197.7 181.8 208.8C170 213.1 173.3 210.6 140.3 240.8L129.1 251L66.3 251C28.7 251 4 250.6 4.5 250.1ZM371.7 248.8C370.9 247.5 366.1 238.4 361 228.5C349.5 206.2 323.7 157.1 316 143C312.9 137.2 305.7 123.8 300 113.2C294.2 102.7 289.3 94 288.9 94C288.6 94 275.3 106.6 259.4 121.9L230.5 149.9L223 150.5C189.5 153.2 173.8 155.3 152 159.9C144.6 161.5 138.4 162.7 138.2 162.5C137.2 161.6 304.3 4 306.3 4C307.1 4 340.2 64.9 390.5 159C395 167.5 402.6 181.7 407.3 190.5C412 199.3 421 216.5 427.3 228.8L438.7 251L405.9 251L373 251L371.7 248.8ZM586.5 249.1C576.1 246.1 572.2 243.7 545 224.4C530.4 214.1 500.1 192.5 477.5 176.5C454.9 160.4 426.4 140.2 414 131.5C401.6 122.8 390.1 114.6 388.3 113.4C386.2 111.8 382.7 106.3 377.4 96.3C373.2 88.1 365.2 73.2 359.8 63.1C348.6 42.3 345.9 36.3 343.1 26C341 18.6 339.2 4 340.4 4C341.2 4 367 22.2 466.2 93.2C512.3 126.1 550.4 153 551 153C551.7 153 552 127.8 552 78.5L552 4L581.2 4.2L610.5 4.5L610.7 127.8L611 251L601.7 250.9C596.1 250.9 590.2 250.2 586.5 249.1Z"/></svg>',
     wordmark: '<svg class="brand-word" viewBox="0 0 930 59" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M348.7 55.9C323.2 49.9 318.7 17.9 341.8 6.1C355.3 -0.8 377.1 2.2 385.4 12.1C404.6 34.8 380.7 63.4 348.7 55.9ZM584.5 56C567.3 51.8 558.3 36.7 563.5 21C571.3 -2.6 614.2 -4.3 624.9 18.5C635.2 40.4 611.2 62.7 584.5 56ZM890.2 55.5C878.8 52.3 876.8 50.3 880.4 45.5L883 42.1L888.2 44.8C898.7 50.2 916 48.2 916 41.5C916 37.8 913 36.2 901.5 34C884.7 30.6 880 27.6 879.3 19.3C877.9 4.6 902.7 -3.1 921.5 6L926 8.2L924.3 11.2C921.4 16 920.7 16.2 915.4 13.8C904.9 9.1 891 11.3 891 17.6C891 21 894.2 22.6 905.9 24.9C918.5 27.4 922.7 29.4 925.8 34C935.4 48.3 913 61.9 890.2 55.5ZM2 55.4C2 55.1 7.7 43.2 14.7 28.9L27.3 3L33.5 3L39.7 3L45.8 15.8C49.1 22.8 54.8 34.7 58.4 42.2L64.9 56L58.6 56L52.3 56L49.7 50L47.1 44L33.2 44L19.3 44L16.7 50L14.1 56L8 56C4.7 56 2 55.8 2 55.4ZM118 29.5L118 3L140.4 3C164.7 3 164.6 3 163.6 8.5L162.9 12L146.2 12.2L129.5 12.5L129.2 15.4C129 17 129.1 19.8 129.5 21.7L130.1 25L145 25L160 25L160 29.5L160 34L145 34L130 34L130 38.9C130 41.6 129.7 44.5 129.4 45.4C128.9 46.8 130.7 47 146.4 47L164 47L164 51.5L164 56L141 56L118 56L118 29.5ZM221 29.4L221 2.8L239.2 3.2C256 3.5 257.9 3.7 262.2 5.8C275.4 12.3 275.1 29 261.8 35L258 36.7L265 45.6C273.5 56.4 273.4 56 265.7 56L259.5 56L253 47.1L246.5 38.1L239.2 38.1L232 38L232 47L232 56L226.5 56L221 56L221 29.4ZM450 29.5L450 3L455.4 3L460.8 3L471.2 14.3C477 20.4 484.3 28.5 487.6 32.2C490.8 35.8 493.8 38.9 494.2 38.9C494.7 39 495 30.9 495 21L495 3L500.5 3L506 3L506 29.5L506 56L500.6 56L495.2 56L478.8 38L462.5 19.9L461.9 37.7C461.6 47.5 461.3 55.6 461.2 55.8C461.1 55.9 458.5 56 455.5 56L450 56L450 29.5ZM696 34L696 12L686.5 12L677 12L677 7.5L677 3L702 3L727 3L727 7.5L727 12L717.5 12L708 12L708 34L708 56L702 56L696 56L696 34ZM780 29.5L780 3L802.5 3L825 3L825 7.5L825 12L808 12L791 12L791 18.5L791 25L806 25L821 25L821 29.5L821 34L806 34L791 34L791 40.5L791 47L808.5 47L826 47L826 51.5L826 56L803 56L780 56L780 29.5ZM366.7 46.5C385.2 41 383.5 16.2 364.4 11.9C351.1 8.9 339 17.3 339 29.5C339 43 351.9 50.9 366.7 46.5ZM606.4 44.7C617.8 38.4 617.8 20.7 606.3 14.3C590.1 5.4 570.6 17.6 575 33.9C578.3 46.1 594 51.5 606.4 44.7ZM40.6 29.8C39.4 26.9 37.2 22.2 35.7 19.5L33.2 14.5L28.6 24.2C26.1 29.6 24 34.2 24 34.5C24 34.8 28.3 35 33.5 35L43 35L40.6 29.8ZM255 27.7C258.7 25.8 260.6 21.7 259.5 18.3C257.9 13.7 253 12 241.8 12L232 12L232 20.5L232 29L242.2 29C248.4 29 253.5 28.5 255 27.7Z"/></svg>',
@@ -520,44 +521,52 @@
         const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
         ["pointerdown", "touchstart", "wheel"].forEach((ev) => track.addEventListener(ev, stop, { passive: true }));
       }
-      // "Aviation on X": official accounts, one at a time, switching every hour by itself.
-      // Readers can also pick an account. If SITE.xList is set, that X list is shown instead.
-      const X_ACCOUNTS = [["NASA", "NASA"], ["esa", "ESA"], ["SpaceX", "SpaceX"], ["Airbus", "Airbus"], ["Boeing", "Boeing"],
-        ["LockheedMartin", "Lockheed Martin"], ["BaykarTech", "Baykar"], ["DLR_en", "DLR"]];
+      // "Aerospace Live": latest headlines from agencies and companies, served by /api/feed
+      // (refreshed at most once an hour on the server). One source at a time, switching every hour.
       if ($("#xbox")) {
         const box = $("#xbox"); box.hidden = false;
-        const useList = !!SITE.xList;
-        let pick = Math.floor(Date.now() / 3600000) % X_ACCOUNTS.length; // changes every hour
-        const urlOf = (k) => (useList ? SITE.xList : "https://x.com/" + X_ACCOUNTS[k][0]);
-        box.innerHTML = `<div class="xbox-head"><span class="xbox-logo">${ICONS.x}</span><div><b>Aviation on X</b><span>${useList ? "Live posts from people in aviation and space" : "Latest from aerospace agencies and companies"}</span></div></div>
-          ${useList ? "" : `<div class="xbox-tabs" role="tablist">${X_ACCOUNTS.map(([h, n], k) => `<button role="tab" data-k="${k}" aria-selected="${k === pick}">${esc(n)}</button>`).join("")}</div>`}
-          <div class="xbox-feed" id="xfeed"><p class="hint">Loading posts…</p></div>
-          <a class="xbox-more" id="xmore" href="${esc(urlOf(pick))}" target="_blank" rel="noopener">Open on X</a>`;
-        let loaded = false;
+        let data = null, pick = 0;
+        const ago = (iso) => {
+          if (!iso) return "";
+          const m = Math.max(1, Math.round((Date.now() - Date.parse(iso)) / 60000));
+          if (m < 60) return m + " min ago";
+          const h = Math.round(m / 60); if (h < 24) return h + (h === 1 ? " hour ago" : " hours ago");
+          const d = Math.round(h / 24); return d < 30 ? d + (d === 1 ? " day ago" : " days ago") : new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+        };
+        box.innerHTML = `<div class="xbox-head"><span class="xbox-logo">${ICONS.rss}</span><div><b>Aerospace Live</b><span>Latest from agencies and companies, updated hourly</span></div></div>
+          <div class="xbox-tabs" role="tablist"></div>
+          <div class="xbox-feed" id="xfeed"><p class="hint">Loading the latest news…</p></div>
+          <a class="xbox-more" id="xmore" target="_blank" rel="noopener"></a>`;
         const render = () => {
-          const feed = $("#xfeed"), h = Math.max(300, feed.clientHeight || 460);
-          $("#xmore").href = urlOf(pick);
-          box.querySelectorAll(".xbox-tabs button").forEach((b) => b.setAttribute("aria-selected", String(+b.dataset.k === pick)));
-          feed.innerHTML = `<a class="twitter-timeline" data-height="${h}" data-chrome="noheader nofooter noborders transparent" data-dnt="true" data-theme="light" href="${esc(urlOf(pick))}"></a>`;
-          if (window.twttr && twttr.widgets) twttr.widgets.load(feed);
-          else if (!document.querySelector('script[src*="platform.x.com/widgets.js"]')) {
-            const sc = document.createElement("script"); sc.async = true; sc.src = "https://platform.x.com/widgets.js"; sc.charset = "utf-8"; document.body.appendChild(sc);
-          }
-          const mine = pick;
-          setTimeout(() => { if (mine === pick && !feed.querySelector("iframe")) feed.innerHTML = `<p class="hint">Posts could not be loaded here. <a href="${esc(urlOf(pick))}" target="_blank" rel="noopener">See them on X</a>.</p>`; }, 10000);
+          const list = data.sources, s = list[pick];
+          box.querySelector(".xbox-tabs").innerHTML = list.map((t, k) => `<button role="tab" data-k="${k}" aria-selected="${k === pick}">${esc(t.name)}</button>`).join("");
+          $("#xfeed").innerHTML = s.items.length
+            ? `<ul class="xnews">${s.items.map((it) => `<li><a href="${esc(it.link)}" target="_blank" rel="noopener"><b>${esc(it.title)}</b><span>${esc(it.via || s.name)}${it.date ? " · " + esc(ago(it.date)) : ""}</span></a></li>`).join("")}</ul>`
+            : `<p class="hint">No fresh news from ${esc(s.name)} right now.</p>`;
+          const tabs = box.querySelector(".xbox-tabs"), on = tabs.querySelector('[aria-selected="true"]');
+          if (on) tabs.scrollLeft = on.offsetLeft - tabs.offsetLeft - (tabs.clientWidth - on.offsetWidth) / 2;
+          const more = $("#xmore"); more.href = "https://x.com/" + s.x; more.innerHTML = `${ICONS.x} Follow ${esc(s.name)} on X`;
         };
         box.addEventListener("click", (e) => {
-          const b = e.target.closest(".xbox-tabs button"); if (!b) return;
-          pick = +b.dataset.k; if (loaded) render();
-          b.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+          const b = e.target.closest(".xbox-tabs button"); if (!b || !data) return;
+          pick = +b.dataset.k; render();
         });
-        const start = () => { if (loaded) return; loaded = true; render(); };
-        if ("IntersectionObserver" in window) {
-          const io = new IntersectionObserver((en) => { if (en.some((x) => x.isIntersecting)) { io.disconnect(); start(); } }, { rootMargin: "200px" });
-          io.observe(box);
-        } else start();
-        // keep it fresh for readers who leave the page open
-        setInterval(() => { if (!useList && loaded) { pick = (pick + 1) % X_ACCOUNTS.length; render(); } }, 3600000);
+        const load = async () => {
+          try {
+            const r = await fetch("/api/feed"); if (!r.ok) throw 0;
+            const j = await r.json();
+            j.sources = (j.sources || []).filter((s) => s.items && s.items.length);
+            if (!j.sources.length) throw 0;
+            const keep = data && data.sources[pick] ? data.sources[pick].key : null;
+            data = j;
+            const k = keep ? j.sources.findIndex((s) => s.key === keep) : -1;
+            pick = k >= 0 ? k : Math.floor(Date.now() / 3600000) % j.sources.length; // changes every hour
+            render();
+          } catch (e) { if (!data) box.hidden = true; }
+        };
+        load();
+        // for readers who leave the page open: next source and fresh headlines every hour
+        setInterval(async () => { await load(); if (data) { pick = (pick + 1) % data.sources.length; render(); } }, 3600000);
       }
 
       // Coming up: planned articles from SCHEDULE (past dates and already-published titles are hidden)
