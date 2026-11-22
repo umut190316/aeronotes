@@ -91,41 +91,64 @@
     o.connect(g).connect(master); o.start(t); o.stop(t + 0.25);
   }
 
-  // short jet-engine pass: turbine whine with a Doppler drop, broadband roar and low rumble.
+  // afterburner pass: ignition "whump", deep roar, the typical crackle and a stereo sweep.
   // dir = 1 sweeps left -> right, -1 right -> left
-  function jetPass(t, dir = 1, dur = 0.75) {
-    const pan = (node) => {
-      if (!ctx.createStereoPanner) return node;
-      const p = ctx.createStereoPanner(); p.pan.setValueAtTime(-0.9 * dir, t); p.pan.linearRampToValueAtTime(0.9 * dir, t + dur);
-      node.connect(p); return p;
-    };
-    const env = (g, peak, at = 0.45) => {
+  let brownBuf = null, crackleBuf = null;
+  function brown() {
+    if (brownBuf) return brownBuf;
+    brownBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+    const d = brownBuf.getChannelData(0); let last = 0;
+    for (let i = 0; i < d.length; i++) { last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02; d[i] = last * 3.5; }
+    return brownBuf;
+  }
+  function crackle() {
+    if (crackleBuf) return crackleBuf;
+    crackleBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+    const d = crackleBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) {
+      if (Math.random() < 0.0016) { // sparse sharp pops
+        const a = (Math.random() * 0.8 + 0.2) * (Math.random() < 0.5 ? -1 : 1), len = 20 + (Math.random() * 90) | 0;
+        for (let k = 0; k < len && i + k < d.length; k++) d[i + k] += a * Math.exp(-k / (len / 4)) * (Math.random() * 0.6 + 0.4);
+      }
+    }
+    return crackleBuf;
+  }
+  function afterburner(t, dir = 1, dur = 1.0) {
+    const out = ctx.createGain(); out.gain.value = 1;
+    let node = out;
+    if (ctx.createStereoPanner) {
+      const p = ctx.createStereoPanner(); p.pan.setValueAtTime(-0.85 * dir, t); p.pan.linearRampToValueAtTime(0.85 * dir, t + dur);
+      out.connect(p); node = p;
+    }
+    node.connect(master); out.connect(verb);
+    const env = (g, peak, a, hold) => {
       g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(peak, t + dur * at);
+      g.gain.exponentialRampToValueAtTime(peak, t + a);
+      g.gain.setValueAtTime(peak, t + hold);
       g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     };
-    // roar: noise through a low-pass that opens as the jet comes closer
-    const src = ctx.createBufferSource(); src.buffer = noise();
-    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.Q.value = 0.7;
-    lp.frequency.setValueAtTime(500, t); lp.frequency.exponentialRampToValueAtTime(2600, t + dur * 0.45); lp.frequency.exponentialRampToValueAtTime(700, t + dur);
-    const rg = ctx.createGain(); env(rg, 0.55);
-    src.connect(lp).connect(rg); pan(rg).connect(master);
-    src.start(t, Math.random()); src.stop(t + dur + 0.05);
-    // turbine whine: two detuned tones that drop in pitch as it passes (Doppler)
-    [[3300, 0.05], [4420, 0.03]].forEach(([f, v]) => {
-      const o = ctx.createOscillator(), g = ctx.createGain();
-      o.type = "sawtooth";
-      o.frequency.setValueAtTime(f * 1.12, t); o.frequency.setValueAtTime(f * 1.1, t + dur * 0.35);
-      o.frequency.exponentialRampToValueAtTime(f * 0.86, t + dur * 0.6);
-      const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = f; bp.Q.value = 4;
-      env(g, v, 0.4);
-      o.connect(bp).connect(g); pan(g).connect(master);
-      o.start(t); o.stop(t + dur + 0.05);
-    });
-    // low rumble
-    const r = ctx.createOscillator(), rgain = ctx.createGain();
-    r.type = "sine"; r.frequency.setValueAtTime(70, t); r.frequency.exponentialRampToValueAtTime(46, t + dur);
-    env(rgain, 0.22, 0.5); r.connect(rgain).connect(master); r.start(t); r.stop(t + dur + 0.05);
+    // ignition whump
+    const w = ctx.createOscillator(), wg = ctx.createGain();
+    w.type = "sine"; w.frequency.setValueAtTime(95, t); w.frequency.exponentialRampToValueAtTime(38, t + 0.25);
+    wg.gain.setValueAtTime(0.0001, t); wg.gain.exponentialRampToValueAtTime(0.7, t + 0.015); wg.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+    w.connect(wg).connect(out); w.start(t); w.stop(t + 0.32);
+    // deep roar
+    const r = ctx.createBufferSource(); r.buffer = brown();
+    const rlp = ctx.createBiquadFilter(); rlp.type = "lowpass"; rlp.Q.value = 0.5;
+    rlp.frequency.setValueAtTime(380, t); rlp.frequency.exponentialRampToValueAtTime(900, t + dur * 0.4); rlp.frequency.exponentialRampToValueAtTime(320, t + dur);
+    const rg = ctx.createGain(); env(rg, 0.9, 0.06, dur * 0.45);
+    r.connect(rlp).connect(rg).connect(out); r.start(t, Math.random()); r.stop(t + dur + 0.05);
+    // rasp / hiss of the hot exhaust
+    const h = ctx.createBufferSource(); h.buffer = noise();
+    const hbp = ctx.createBiquadFilter(); hbp.type = "bandpass"; hbp.Q.value = 0.6;
+    hbp.frequency.setValueAtTime(900, t); hbp.frequency.exponentialRampToValueAtTime(1800, t + dur * 0.4); hbp.frequency.exponentialRampToValueAtTime(700, t + dur);
+    const hg = ctx.createGain(); env(hg, 0.13, 0.08, dur * 0.4);
+    h.connect(hbp).connect(hg).connect(out); h.start(t, Math.random()); h.stop(t + dur + 0.05);
+    // crackle
+    const c = ctx.createBufferSource(); c.buffer = crackle();
+    const chp = ctx.createBiquadFilter(); chp.type = "highpass"; chp.frequency.value = 900;
+    const cg = ctx.createGain(); env(cg, 0.45, 0.1, dur * 0.5);
+    c.connect(chp).connect(cg).connect(out); c.start(t, Math.random()); c.stop(t + dur + 0.05);
   }
 
   const play = (fn) => () => { if (muted || !init()) return; try { fn(now()); } catch {} };
@@ -140,8 +163,8 @@
     // flashcard flip / swipe
     flip: play((t) => whoosh(t, 0.28, 600, 3200, 0.22, [-0.4, 0.4])),
     swipe: play((t) => whoosh(t, 0.2, 400, 1800, 0.16)),
-    // home page slider: short jet-engine pass in the direction of travel
-    slide: (dir = 1) => play((t) => jetPass(t, dir))(),
+    // home page slider: afterburner pass in the direction of travel
+    slide: (dir = 1) => play((t) => afterburner(t, dir))(),
     // end of round: jet fly-by, then a chord whose brightness follows the score
     finish: (score = 0, max = 10) => play((t) => {
       whoosh(t, 1.6, 180, 1400, 0.42, [-1, 1]);
