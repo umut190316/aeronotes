@@ -151,6 +151,57 @@
     c.connect(chp).connect(cg).connect(out); c.start(t, Math.random()); c.stop(t + dur + 0.05);
   }
 
+  // F-16 style low fly-by: rising howl on approach, ground-reflection "phasing" rip at the
+  // pass, then a deep crackling roar as it leaves, with a Doppler drop. dir sets the pan.
+  function f16Pass(t, dir = 1, dur = 1.5) {
+    const tp = t + dur * 0.42; // moment it passes overhead
+    const out = ctx.createGain();
+    let node = out;
+    if (ctx.createStereoPanner) {
+      const p = ctx.createStereoPanner();
+      p.pan.setValueAtTime(-0.95 * dir, t); p.pan.setTargetAtTime(0.95 * dir, tp - 0.08, 0.12);
+      out.connect(p); node = p;
+    }
+    node.connect(master); out.connect(verb);
+    const swell = (g, peak, rise = 0.9) => {
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(peak * 0.25, t + (tp - t) * 0.6);
+      g.gain.exponentialRampToValueAtTime(peak, tp);
+      g.gain.exponentialRampToValueAtTime(peak * 0.35, tp + (t + dur - tp) * 0.5);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    };
+    // 1) howl: high band of noise sliding down through the pass (Doppler)
+    const h = ctx.createBufferSource(); h.buffer = noise();
+    const hbp = ctx.createBiquadFilter(); hbp.type = "bandpass"; hbp.Q.value = 3;
+    hbp.frequency.setValueAtTime(3600, t); hbp.frequency.exponentialRampToValueAtTime(4200, tp - 0.05); hbp.frequency.exponentialRampToValueAtTime(1500, tp + 0.25);
+    const hg = ctx.createGain(); swell(hg, 0.22);
+    h.connect(hbp).connect(hg).connect(out); h.start(t, Math.random()); h.stop(t + dur + 0.05);
+    // 2) main roar with ground-reflection comb filter (the classic fly-by "phasing")
+    const r = ctx.createBufferSource(); r.buffer = noise();
+    const rlp = ctx.createBiquadFilter(); rlp.type = "lowpass";
+    rlp.frequency.setValueAtTime(1200, t); rlp.frequency.exponentialRampToValueAtTime(5000, tp); rlp.frequency.exponentialRampToValueAtTime(700, t + dur);
+    const dly = ctx.createDelay(0.05);
+    dly.delayTime.setValueAtTime(0.008, t); dly.delayTime.exponentialRampToValueAtTime(0.0003, tp); dly.delayTime.exponentialRampToValueAtTime(0.009, t + dur);
+    const mix = ctx.createGain(); mix.gain.value = 0.85;
+    const rg = ctx.createGain(); swell(rg, 0.55);
+    r.connect(rlp); rlp.connect(rg); rlp.connect(dly).connect(mix).connect(rg);
+    rg.connect(out); r.start(t, Math.random()); r.stop(t + dur + 0.05);
+    // 3) deep rumble that blooms after the pass
+    const b = ctx.createBufferSource(); b.buffer = brown();
+    const blp = ctx.createBiquadFilter(); blp.type = "lowpass"; blp.frequency.value = 420;
+    const bg = ctx.createGain();
+    bg.gain.setValueAtTime(0.0001, t); bg.gain.exponentialRampToValueAtTime(0.25, tp - 0.05);
+    bg.gain.exponentialRampToValueAtTime(0.95, tp + 0.12); bg.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    b.connect(blp).connect(bg).connect(out); b.start(t, Math.random()); b.stop(t + dur + 0.05);
+    // 4) crackle in the departing roar
+    const c = ctx.createBufferSource(); c.buffer = crackle();
+    const chp = ctx.createBiquadFilter(); chp.type = "highpass"; chp.frequency.value = 700;
+    const cg = ctx.createGain();
+    cg.gain.setValueAtTime(0.0001, t); cg.gain.setValueAtTime(0.0001, tp - 0.05);
+    cg.gain.exponentialRampToValueAtTime(0.5, tp + 0.15); cg.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    c.connect(chp).connect(cg).connect(out); c.start(t, Math.random()); c.stop(t + dur + 0.05);
+  }
+
   const play = (fn) => () => { if (muted || !init()) return; try { fn(now()); } catch {} };
 
   window.SFX = {
@@ -163,8 +214,8 @@
     // flashcard flip / swipe
     flip: play((t) => whoosh(t, 0.28, 600, 3200, 0.22, [-0.4, 0.4])),
     swipe: play((t) => whoosh(t, 0.2, 400, 1800, 0.16)),
-    // home page slider: afterburner pass in the direction of travel
-    slide: (dir = 1) => play((t) => afterburner(t, dir))(),
+    // home page slider: F-16 style fly-by in the direction of travel
+    slide: (dir = 1) => play((t) => f16Pass(t, dir))(),
     // end of round: jet fly-by, then a chord whose brightness follows the score
     finish: (score = 0, max = 10) => play((t) => {
       whoosh(t, 1.6, 180, 1400, 0.42, [-1, 1]);
