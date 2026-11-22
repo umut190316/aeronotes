@@ -501,15 +501,16 @@
         const track = $("#heroTrack"), dots = [...document.querySelectorAll(".hero-dots button")];
         const cur = () => Math.round(track.scrollLeft / track.clientWidth);
         const go = (i) => track.scrollTo({ left: ((i + slides.length) % slides.length) * track.clientWidth, behavior: "smooth" });
-        const sfx = () => { if (window.SFX) SFX.swipe(); };
+        let lastDir = 1;
+        const sfx = (dir = lastDir) => { if (window.SFX && SFX.slide) SFX.slide(dir); };
         let shown = 0, byHand = false;
         // whoosh when the reader changes slide by swiping (not on auto-advance)
         const mark = () => {
           const c = cur(); dots.forEach((d, i) => d.classList.toggle("on", i === c));
-          if (c !== shown) { if (byHand) sfx(); shown = c; }
+          if (c !== shown) { if (byHand) sfx(c > shown ? 1 : -1); shown = c; }
         };
         track.addEventListener("scroll", () => requestAnimationFrame(mark), { passive: true }); mark();
-        const nav = (i) => { byHand = false; sfx(); go(i); stop(); };
+        const nav = (i) => { byHand = false; sfx(i >= cur() ? 1 : -1); go(i); stop(); };
         $(".hero-nav.prev").onclick = () => nav(cur() - 1);
         $(".hero-nav.next").onclick = () => nav(cur() + 1);
         dots.forEach((d) => (d.onclick = () => nav(+d.dataset.i)));
