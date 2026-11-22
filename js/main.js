@@ -501,11 +501,19 @@
         const track = $("#heroTrack"), dots = [...document.querySelectorAll(".hero-dots button")];
         const cur = () => Math.round(track.scrollLeft / track.clientWidth);
         const go = (i) => track.scrollTo({ left: ((i + slides.length) % slides.length) * track.clientWidth, behavior: "smooth" });
-        const mark = () => dots.forEach((d, i) => d.classList.toggle("on", i === cur()));
+        const sfx = () => { if (window.SFX) SFX.swipe(); };
+        let shown = 0, byHand = false;
+        // whoosh when the reader changes slide by swiping (not on auto-advance)
+        const mark = () => {
+          const c = cur(); dots.forEach((d, i) => d.classList.toggle("on", i === c));
+          if (c !== shown) { if (byHand) sfx(); shown = c; }
+        };
         track.addEventListener("scroll", () => requestAnimationFrame(mark), { passive: true }); mark();
-        $(".hero-nav.prev").onclick = () => { go(cur() - 1); stop(); };
-        $(".hero-nav.next").onclick = () => { go(cur() + 1); stop(); };
-        dots.forEach((d) => (d.onclick = () => { go(+d.dataset.i); stop(); }));
+        const nav = (i) => { byHand = false; sfx(); go(i); stop(); };
+        $(".hero-nav.prev").onclick = () => nav(cur() - 1);
+        $(".hero-nav.next").onclick = () => nav(cur() + 1);
+        dots.forEach((d) => (d.onclick = () => nav(+d.dataset.i)));
+        ["pointerdown", "touchstart", "wheel"].forEach((ev) => track.addEventListener(ev, () => (byHand = true), { passive: true }));
         let timer = matchMedia("(prefers-reduced-motion: reduce)").matches ? null : setInterval(() => go(cur() + 1), 7000);
         const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
         ["pointerdown", "touchstart", "wheel"].forEach((ev) => track.addEventListener(ev, stop, { passive: true }));
