@@ -567,9 +567,11 @@ img.about-avatar.photo { object-fit: cover; object-position: 40% 25%; display: b
     width: var(--wide); margin-left: calc((100% - var(--wide)) / 2);
     grid-template-columns: 300px 2.6fr 1fr;
   }
+  /* same height as the slider; the headline list scrolls inside */
+  .hero-grid .xbox { contain: size; min-height: 0; align-self: stretch; }
 }
 @media (max-width: 1479px) {
-  .hero-grid .xbox { order: 3; grid-column: 1 / -1; max-height: 560px; }
+  .hero-grid .xbox { order: 3; grid-column: 1 / -1; height: 520px; min-height: 0; }
 }
 .xbox .xbox-logo svg { width: 18px !important; height: 18px !important; display: block; margin: 0; color: #fff; }
 
@@ -579,7 +581,7 @@ img.about-avatar.photo { object-fit: cover; object-position: 40% 25%; display: b
 .xbox-tabs button[aria-selected="true"] { background: #0f1419; border-color: #0f1419; color: #fff; }
 
 /* Aerospace Live headlines */
-.xbox-feed { overflow-y: auto; scrollbar-width: thin; }
+.xbox-feed { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #c3cad6 transparent; }
 .xnews { list-style: none; margin: 0; padding: 4px 0; }
 .xnews li + li { border-top: 1px solid var(--line); }
 .xnews a { display: block; padding: 11px 14px; color: var(--ink); text-decoration: none; }
