@@ -26,8 +26,8 @@
     card.dataset.ready = 1;
     $("#fcCount").textContent = `${i + 1} / ${deck.length}`;
   }
-  const flip = () => card.classList.toggle("flipped");
-  const go = (d) => { i = (i + d + deck.length) % deck.length; show(); };
+  const flip = () => { card.classList.toggle("flipped"); SFX.flip(); };
+  const go = (d) => { i = (i + d + deck.length) % deck.length; SFX.swipe(); show(); };
 
   $("#fcFilters").innerHTML = cats.map((c) => `<button class="filter ${c === cat ? "active" : ""}" data-c="${esc(c)}">${esc(c)}</button>`).join("");
   $("#fcFilters").addEventListener("click", (e) => {
@@ -57,5 +57,6 @@
     else if (e.key === " " || e.key === "Enter") { if (document.activeElement === card || e.key === " ") { e.preventDefault(); flip(); } }
   });
 
+  const sb = document.querySelector("[data-sfx-toggle]"); if (sb) SFX.mount(sb);
   build(true);
 })();

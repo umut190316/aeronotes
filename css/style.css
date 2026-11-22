@@ -543,3 +543,9 @@ img.about-avatar.photo { object-fit: cover; object-position: 40% 25%; display: b
 .c-form input::placeholder, .c-form textarea::placeholder { color: #9aa4b2; }
 
 #editor img { cursor: pointer; }
+
+/* Sound toggle */
+.page-head h1 { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.sfx-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--soft); color: var(--navy); display: inline-grid; place-items: center; cursor: pointer; padding: 0; flex: none; }
+.sfx-btn svg { width: 20px; height: 20px; }
+.sfx-btn:hover { border-color: var(--navy); }

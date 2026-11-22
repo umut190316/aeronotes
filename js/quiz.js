@@ -156,7 +156,7 @@
     $("#qzStart").onclick = start;
   }
 
-  function start() { round = newRound(); idx = 0; score = 0; show(); }
+  function start() { round = newRound(); idx = 0; score = 0; SFX.start(); show(); }
 
   function show() {
     const q = round[idx];
@@ -171,6 +171,7 @@
   function answer(i) {
     const q = round[idx], ok = q.options[i] === q.a;
     if (ok) score++;
+    ok ? SFX.correct() : SFX.wrong();
     seen.add(q.id); save(SEEN_KEY, [...seen]);
     box.querySelectorAll(".qz-opt").forEach((b, j) => {
       b.disabled = true;
@@ -186,6 +187,7 @@
 
   function result() {
     const best = Math.max(score, load(BEST_KEY, 0) || 0); save(BEST_KEY, best);
+    SFX.finish(score, ROUND);
     const msg = score === ROUND ? "Perfect round. Captain material!" : score >= 8 ? "Excellent, cleared for takeoff." : score >= 5 ? "Solid flight. A bit more practice and you're there." : "Rough landing. Try another round!";
     const shareText = `I scored ${score}/${ROUND} on the AeroNotes aviation & space quiz. Can you beat me?`;
     const url = location.origin + "/quiz";
@@ -197,5 +199,6 @@
     $("#qzAgain").onclick = start;
   }
 
+  const sb = document.querySelector("[data-sfx-toggle]"); if (sb) SFX.mount(sb);
   intro();
 })();
