@@ -10,6 +10,7 @@ const SITE = {
   tagline: "A Student Blog on Aerospace & Space",
   author: "Umutcan Bakırcı",
   avatar: "assets/profile.webp", // profil fotoğrafı
+  xList: "", // X listesi linki (ör. https://x.com/i/lists/123...), Yönetim > Profil sekmesinden değiştirilir
   linkedin: "https://www.linkedin.com/in/umutcanbak05", // "Follow" butonları
   repo: "umut190316/aeronotes" // örn: "kullaniciadi/aeronotes". Write sayfasındaki GitHub düzenleme linki için
 };

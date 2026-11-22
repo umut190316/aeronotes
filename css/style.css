@@ -549,3 +549,26 @@ img.about-avatar.photo { object-fit: cover; object-position: 40% 25%; display: b
 .sfx-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--soft); color: var(--navy); display: inline-grid; place-items: center; cursor: pointer; padding: 0; flex: none; }
 .sfx-btn svg { width: 20px; height: 20px; }
 .sfx-btn:hover { border-color: var(--navy); }
+
+/* Aviation on X box: left column on wide screens, full width below the hero elsewhere */
+.xbox { display: flex; flex-direction: column; gap: 12px; padding: 18px; min-height: 420px; }
+.xbox[hidden] { display: none; }
+.xbox-head { display: flex; gap: 12px; align-items: center; }
+.xbox-logo { width: 38px; height: 38px; border-radius: 10px; background: #0f1419; color: #fff; display: grid; place-items: center; flex: none; }
+.xbox-logo svg { width: 18px; height: 18px; }
+.xbox-head b { display: block; font-size: 16px; }
+.xbox-head span { display: block; font-size: 13px; color: var(--muted); }
+.xbox-feed { flex: 1; min-height: 0; overflow: hidden; border-radius: 12px; background: #fff; }
+.xbox-feed > .hint { padding: 14px; }
+.xbox-more { font-size: 13px; font-weight: 600; color: var(--navy); }
+@media (min-width: 1480px) {
+  .hero-grid:has(.xbox:not([hidden])) {
+    --wide: min(calc(100vw - 64px), 1500px);
+    width: var(--wide); margin-left: calc((100% - var(--wide)) / 2);
+    grid-template-columns: 300px 2.6fr 1fr;
+  }
+}
+@media (max-width: 1479px) {
+  .hero-grid .xbox { order: 3; grid-column: 1 / -1; max-height: 560px; }
+}
+.xbox .xbox-logo svg { width: 18px !important; height: 18px !important; display: block; margin: 0; color: #fff; }
