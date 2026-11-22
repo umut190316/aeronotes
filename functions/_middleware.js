@@ -188,16 +188,58 @@ Sitemap: ${origin}/sitemap.xml
   return new Response(txt, { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=3600" } });
 }
 
+/* Security headers for every response (static files, SEO pages and the API) */
+const CSP_BASE = [
+  "default-src 'self'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  "img-src 'self' data: blob: https:",
+  "media-src 'self' https:",
+  "connect-src 'self' https://api.github.com",
+  "frame-src https://www.youtube-nocookie.com https://player.vimeo.com",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+  "upgrade-insecure-requests",
+];
+function secure(res, path) {
+  const out = new Response(res.body, res);
+  const h = out.headers;
+  // The editor pages read posts.js with new Function, so only they may evaluate code
+  const editor = /^\/(write|manage|login)(\.html)?$/.test(path);
+  h.set("Content-Security-Policy", ["script-src 'self'" + (editor ? " 'unsafe-eval'" : ""), ...CSP_BASE].join("; "));
+  h.set("X-Content-Type-Options", "nosniff");
+  h.set("X-Frame-Options", "DENY");
+  h.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  h.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()");
+  h.set("Strict-Transport-Security", "max-age=31536000");
+  h.set("Cross-Origin-Opener-Policy", "same-origin");
+  if (editor || path.startsWith("/api/auth")) h.set("Cache-Control", "no-store");
+  if (editor) h.set("X-Robots-Tag", "noindex, nofollow");
+  return out;
+}
+
 export async function onRequest(context) {
+  const path = new URL(context.request.url).pathname.replace(/\/+$/, "") || "/";
+  const res = await route(context);
+  try { return secure(res, path); } catch { return res; }
+}
+
+async function route(context) {
   const { request } = context;
   if (request.method !== "GET" && request.method !== "HEAD") return context.next();
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, "") || "/";
+  // Decoded form for the blocklist, so /%2egit or /lib%2fseo.js can't slip past it
+  let plain = path;
+  try { for (let i = 0; i < 3 && /%/.test(plain); i++) plain = decodeURIComponent(plain); } catch { plain = path; }
+  plain = plain.replace(/\\/g, "/").toLowerCase();
 
   try {
     if (path.startsWith("/api/")) return context.next();
     // Never serve repository/tooling files as pages
-    if (/^\/(\.git|\.wrangler|node_modules|functions|lib)(\/|$)|^\/(wrangler\.toml|README\.md|\.gitignore|\.nojekyll)$/.test(path))
+    if (/^\/(\.git|\.wrangler|node_modules|functions|lib)(\/|$)|^\/(wrangler\.toml|README\.md|\.gitignore|\.nojekyll)$/i.test(plain) || /(^|\/)\.(git|wrangler|env|dev\.vars)/.test(plain))
       return new Response("Not found", { status: 404, headers: { "content-type": "text/plain" } });
 
     const m = path.match(/^\/article\/([^/]+)$/);

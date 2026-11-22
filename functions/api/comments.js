@@ -71,8 +71,10 @@ export async function onRequest({ request, env }) {
     try { body = await request.json(); } catch { return json({ error: "Invalid request." }, 400); }
     if (body.website) return json({ ok: true }); // honeypot: bots fill hidden field
     const post = String(body.post || "").trim().slice(0, 120);
-    const name = String(body.name || "").trim().replace(/\s+/g, " ");
-    const text = String(body.text || "").trim();
+    // Strip invisible and direction-changing characters (used to disguise names and links)
+    const clean = (v) => String(v || "").normalize("NFC").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g, "");
+    const name = clean(body.name).trim().replace(/\s+/g, " ");
+    const text = clean(body.text).trim().replace(/\n{4,}/g, "\n\n\n");
     if (!post) return json({ error: "Article not found." }, 400);
     try {
       const posts = await loadPosts(env, request);
@@ -93,8 +95,12 @@ export async function onRequest({ request, env }) {
       parent = row.parent_id || row.id;
     }
     const author = request.headers.get("authorization") ? await isAuthor(request) : false;
+    // Only the author may use the author's name (or look-alikes such as "admin")
+    const fold = (v) => v.toLowerCase().replace(/ı/g, "i").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+    if (!author && /umutcan|bakirci|aeronotes|admin|moderator|dirtyairman/.test(fold(name)))
+      return json({ error: "This name is reserved. Please use a different name." }, 400);
 
-    const ipHash = await sha256((request.headers.get("cf-connecting-ip") || "unknown") + "|aeronotes");
+    const ipHash = await sha256((request.headers.get("cf-connecting-ip") || "unknown") + "|" + (env.IP_SALT || "aeronotes"));
     const recent = await db.prepare("SELECT COUNT(*) AS n FROM comments WHERE ip_hash = ? AND created_at > datetime('now', '-10 minutes')").bind(ipHash).first();
     if (recent && recent.n >= 5) return json({ error: "Too many comments in a short time. Please try again in a few minutes." }, 429);
 

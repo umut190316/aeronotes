@@ -77,7 +77,7 @@ async function checkCode(secret, code) {
   code = String(code || "").replace(/\s/g, "");
   if (!/^\d{6}$/.test(code)) return false;
   const now = Math.floor(Date.now() / 30000);
-  for (const d of [-1, 0, 1]) if ((await totp(secret, now + d)) === code) return true;
+  for (const d of [-1, 0, 1]) if ((await totp(secret, now + d)) === code) return now + d;
   return false;
 }
 
@@ -102,10 +102,17 @@ export async function onRequest({ request, env }) {
     await db.prepare("DELETE FROM auth_fails WHERE created_at < datetime('now', '-1 day')").run();
     const fails = await db.prepare("SELECT COUNT(*) AS n FROM auth_fails WHERE ip_hash = ? AND created_at > datetime('now', '-15 minutes')").bind(ipHash).first();
     if (fails && fails.n >= 5) return json({ error: "Çok fazla hatalı deneme. 15 dakika sonra tekrar dene." }, 429);
-    if (!(await checkCode(await getSetting(db, "totp_secret"), body.code))) {
+    // Global brake: many wrong codes from many addresses (a spread-out guessing attack) lock it for everyone for an hour
+    const all = await db.prepare("SELECT COUNT(*) AS n FROM auth_fails WHERE created_at > datetime('now', '-1 hour')").first();
+    if (all && all.n >= 30) return json({ error: "Giriş geçici olarak kilitlendi. 1 saat sonra tekrar dene." }, 429);
+    const step = await checkCode(await getSetting(db, "totp_secret"), body.code);
+    // A code works only once (stops someone reusing a code they saw)
+    if (step !== false && String(step) === (await getSetting(db, "totp_last"))) return json({ error: "Bu kod zaten kullanıldı. Yeni kodu bekle." }, 401);
+    if (step === false) {
       await db.prepare("INSERT INTO auth_fails (ip_hash) VALUES (?)").bind(ipHash).run();
       return json({ error: "Doğrulama kodu yanlış." }, 401);
     }
+    await setSetting(db, "totp_last", String(step));
     return json({ vault: JSON.parse(await getSetting(db, "vault")) });
   }
 
@@ -121,7 +128,7 @@ export async function onRequest({ request, env }) {
     const pending = await getSetting(db, "totp_pending");
     if (!pending) return json({ error: "Önce kurulumu başlat." }, 400);
     if (!validVault(body.vault)) return json({ error: "Geçersiz anahtar kasası." }, 400);
-    if (!(await checkCode(pending, body.code))) return json({ error: "Kod yanlış. Uygulamadaki güncel kodu yaz." }, 400);
+    if ((await checkCode(pending, body.code)) === false) return json({ error: "Kod yanlış. Uygulamadaki güncel kodu yaz." }, 400);
     await setSetting(db, "vault", JSON.stringify(body.vault));
     await setSetting(db, "totp_secret", pending);
     await delSetting(db, "totp_pending");

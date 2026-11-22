@@ -769,6 +769,7 @@
     write() {
       if (!auth.on) { location.replace("login.html"); return; }
       const f = $("#writeForm"), msg = $("#publishMsg"), ed = $("#editor");
+      f.addEventListener("submit", (e) => e.preventDefault());
       const editId = new URLSearchParams(location.search).get("edit");
       const editing = editId ? POSTS.find((p) => p.id === editId) : null;
       const COVERS = [["assets/wing.webp", "Kanat"], ["assets/rocket.webp", "Roket"], ["assets/engine.webp", "Motor"], ["assets/satellite.webp", "Uydu"], ["assets/airfoil.webp", "Kanat profili"]];
@@ -1295,7 +1296,7 @@
               <div class="field"><input id="tfCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="123456"></div>
               <button class="btn" id="tfOk">Onayla ve aç</button>`;
             const s = document.createElement("script");
-            s.src = "https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js";
+            s.src = "/js/vendor/qrcode.js";
             s.onload = () => { try { const q = qrcode(0, "M"); q.addData(d.uri); q.make(); $("#tfQr").innerHTML = q.createSvgTag({ cellSize: 4, margin: 2 }); $("#tfQrLine").hidden = false; } catch {} };
             document.head.appendChild(s);
             $("#tfOk").onclick = async () => {
