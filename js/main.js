@@ -533,7 +533,7 @@
           const h = Math.round(m / 60); if (h < 24) return h + (h === 1 ? " hour ago" : " hours ago");
           const d = Math.round(h / 24); return d < 30 ? d + (d === 1 ? " day ago" : " days ago") : new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
         };
-        box.innerHTML = `<div class="xbox-head"><span class="xbox-logo">${ICONS.rss}</span><div><b>Aerospace Live</b><span>Latest from agencies and companies, updated hourly</span></div></div>
+        box.innerHTML = `<div class="xbox-brand"><img src="assets/aerospace-live.webp" width="653" height="353" alt="Aerospace Live"><span>Latest from agencies and companies, updated hourly</span></div>
           <div class="xbox-tabs" role="tablist"></div>
           <div class="xbox-feed" id="xfeed"><p class="hint">Loading the latest news…</p></div>`;
         const render = () => {
