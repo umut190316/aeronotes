@@ -595,3 +595,33 @@ img.about-avatar.photo { object-fit: cover; object-position: 40% 25%; display: b
 @media (max-width: 1479px) { .xbox-brand img { max-width: 320px; } }
 #editor .media-block .mb-del { position: absolute; top: 10px; right: 10px; z-index: 3; border: 0; border-radius: 999px; padding: 7px 14px; font: inherit; font-size: 14px; font-weight: 600; color: #fff; background: rgba(180, 35, 24, .92); cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
 #editor .media-block .mb-del:hover { background: #b42318; }
+
+/* ---------- Word-style pictures & videos (editor + articles) ---------- */
+.prose figure.m-center, .prose figure.m-full { margin-left: auto; margin-right: auto; }
+.prose figure.m-left { float: left; margin: 6px 24px 14px 0; }
+.prose figure.m-right { float: right; margin: 6px 0 14px 24px; }
+.prose figure.m-left img, .prose figure.m-right img, .prose figure.m-left .video, .prose figure.m-right video { margin: 0; }
+.prose figure .video, .prose figure video.video-file { margin: 0; }
+.prose::after { content: ""; display: block; clear: both; }
+.prose h2, .prose h3 { clear: both; }
+@media (max-width: 600px) {
+  .prose figure.m-left, .prose figure.m-right { float: none; width: 100% !important; margin: 20px 0; }
+}
+/* editor controls */
+#editor .media-block { margin: 0; position: static; }
+#editor .media-block::after { content: none; }
+#editor figure { position: relative; }
+#editor figure:hover, #editor figure:focus-within { outline: 2px solid #8fb0e6; outline-offset: 3px; border-radius: 4px; }
+#editor figure.uploading img, #editor figure.uploading video { opacity: .55; }
+#editor figure.uploading::before { content: "Yükleniyor…"; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 4; background: rgba(15,45,82,.85); color: #fff; padding: 6px 14px; border-radius: 999px; font-size: 14px; }
+#editor .mb-tools { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 5; display: none; gap: 2px; padding: 4px; border-radius: 10px; background: rgba(14,23,38,.88); box-shadow: 0 4px 14px rgba(0,0,0,.3); white-space: nowrap; }
+#editor figure:hover .mb-tools, #editor figure:focus-within .mb-tools { display: flex; }
+#editor .mb-tools button { border: 0; background: none; color: #fff; font: inherit; font-size: 15px; line-height: 1; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+#editor .mb-tools button:hover { background: rgba(255,255,255,.18); }
+#editor .mb-tools .mb-del { position: static; box-shadow: none; padding: 6px 8px; background: #b42318; }
+#editor .mb-size { position: absolute; left: 8px; bottom: 8px; z-index: 5; display: none; background: rgba(14,23,38,.8); color: #fff; font-size: 12px; padding: 2px 8px; border-radius: 999px; }
+#editor figure:hover .mb-size { display: block; }
+#editor .mb-resize { position: absolute; right: -7px; bottom: -7px; z-index: 6; width: 18px; height: 18px; border-radius: 4px; background: #fff; border: 2px solid var(--navy-600); cursor: nwse-resize; touch-action: none; display: none; }
+#editor figure.m-right .mb-resize { right: auto; left: -7px; cursor: nesw-resize; }
+#editor figure:hover .mb-resize, #editor figure:focus-within .mb-resize { display: block; }
+@media (hover: none) { #editor .mb-tools, #editor .mb-resize, #editor .mb-size { display: flex; } #editor .mb-size { display: block; } }

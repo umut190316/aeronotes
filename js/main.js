@@ -332,6 +332,7 @@
           if (el.classList.contains("media-block")) { unwrap(el); return; }
           const p = doc.createElement("p"); p.append(...el.childNodes); el.replaceWith(p); return;
         }
+        if (tag === "SPAN" && /\bmb-(tools|size|resize)\b/.test(el.className)) { el.remove(); return; } // editor-only controls
         if (tag === "SPAN" || tag === "FONT") {
           // keep only a known font and a size between 8 and 100 px
           const fam = el.style.fontFamily || el.getAttribute("face") || "";
@@ -353,7 +354,12 @@
         }
         if (!(tag in ALLOWED)) { walk(el); unwrap(el); return; }
         const path = el.getAttribute("data-path");
+        // a figure keeps its position (left/centre/right/full) and its width in %
+        const figAlign = tag === "FIGURE" ? (el.className.match(/\bm-(left|center|right|full)\b/) || [])[0] : null;
+        const figWidth = tag === "FIGURE" ? parseFloat(el.style.width) : NaN;
         [...el.attributes].forEach((a) => { if (!ALLOWED[tag].includes(a.name)) el.removeAttribute(a.name); });
+        if (figAlign) el.className = figAlign;
+        if (tag === "FIGURE" && figWidth >= 10 && figWidth <= 100) el.style.width = Math.round(figWidth) + "%";
         if (path && !keepBlob) el.setAttribute("src", path);
         if (tag === "A") {
           const href = el.getAttribute("href") || "";
@@ -881,11 +887,35 @@
         document.execCommand("insertHTML", false, html); changed();
       });
 
-      // ---- photos & videos inside the text (inserted where the cursor is)
-      const mediaBlock = (inner) => `<div class="media-block" contenteditable="false">${inner}</div><p><br></p>`;
-      // every photo/video in the editor gets a "Remove" button (buttons are stripped when saving)
+      // ---- photos & videos inside the text, Word-style:
+      //      appear at once, can sit left / centre / right with the text flowing around, and be resized by dragging the corner.
+      //      Layout is stored on the <figure> (class m-left|m-center|m-right|m-full, style width:NN%).
+      const mediaBlock = (inner) => `<div class="media-block" contenteditable="false"><figure class="m-center" style="width:100%">${inner}</figure></div><p><br></p>`;
+      const TOOLS = '<span class="mb-tools">' +
+        '<button type="button" data-mb="m-left" title="Sola yasla (yazı sağından akar)">⬅</button>' +
+        '<button type="button" data-mb="m-center" title="Ortala">⬌</button>' +
+        '<button type="button" data-mb="m-right" title="Sağa yasla (yazı solundan akar)">➡</button>' +
+        '<button type="button" data-mb="m-full" title="Tam genişlik">⬛</button>' +
+        '<button type="button" data-mb="smaller" title="Küçült">－</button>' +
+        '<button type="button" data-mb="bigger" title="Büyüt">＋</button>' +
+        '<button type="button" data-mb="caption" title="Alt yazı ve açıklama">✏️</button>' +
+        '<button type="button" data-mb="del" class="mb-del" title="Kaldır">✕</button>' +
+        "</span>";
+      const figOf = (block) => block.querySelector(":scope > figure");
+      const widthOf = (fig) => parseFloat(fig.style.width) || 100;
+      const setWidth = (fig, pct) => {
+        pct = Math.round(Math.min(100, Math.max(15, pct)));
+        fig.style.width = pct + "%";
+        const badge = fig.querySelector(".mb-size"); if (badge) badge.textContent = "%" + pct;
+      };
+      const setAlign = (fig, cls) => {
+        fig.classList.remove("m-left", "m-center", "m-right", "m-full");
+        fig.classList.add(cls);
+        if (cls === "m-full") setWidth(fig, 100);
+        else if ((cls === "m-left" || cls === "m-right") && widthOf(fig) > 60) setWidth(fig, 45); // floating needs room for text
+      };
+      // every picture/video sits in a block with a figure and the tool bar (tools are stripped when saving)
       const decorateMedia = () => {
-        // any picture/video that got in some other way is put in a block too, so it can be removed
         ed.querySelectorAll("img, video, iframe").forEach((m) => {
           if (m.closest(".media-block")) return;
           const target = m.closest("figure, .video") || m;
@@ -893,46 +923,90 @@
           target.replaceWith(wrap); wrap.appendChild(target);
         });
         ed.querySelectorAll(".media-block").forEach((b) => {
-          if (!b.querySelector(":scope > .mb-del")) b.insertAdjacentHTML("afterbegin", '<button type="button" class="mb-del" title="Bu fotoğrafı/videoyu kaldır">✕ Kaldır</button>');
+          let fig = figOf(b);
+          if (!fig) {
+            fig = document.createElement("figure"); fig.className = "m-center"; fig.style.width = "100%";
+            [...b.childNodes].filter((n) => !(n.classList && n.classList.contains("mb-tools"))).forEach((n) => fig.appendChild(n));
+            b.appendChild(fig);
+          }
+          if (!/\bm-(left|center|right|full)\b/.test(fig.className)) fig.classList.add("m-center");
+          if (!fig.querySelector(":scope > .mb-tools")) {
+            fig.insertAdjacentHTML("afterbegin", TOOLS);
+            fig.insertAdjacentHTML("beforeend", `<span class="mb-size">%${Math.round(widthOf(fig))}</span><span class="mb-resize" title="Sürükleyerek büyüt / küçült"></span>`);
+          }
+          b.querySelectorAll(":scope > .mb-tools, :scope > .mb-del").forEach((x) => x.remove()); // old-style buttons
         });
       };
       decorateMedia();
       new MutationObserver(decorateMedia).observe(ed, { childList: true, subtree: true });
-      ed.addEventListener("mousedown", (e) => { if (e.target.closest(".mb-del")) e.preventDefault(); });
+
+      ed.addEventListener("mousedown", (e) => { if (e.target.closest(".mb-tools, .mb-resize")) e.preventDefault(); });
       ed.addEventListener("click", (e) => {
-        const del = e.target.closest(".mb-del"); if (!del) return;
+        const btn = e.target.closest(".mb-tools button"); if (!btn) return;
         e.preventDefault();
-        const block = del.closest(".media-block"), next = block.nextElementSibling;
-        if (next && next.tagName === "P" && !next.textContent.trim() && !next.querySelector("img,video,iframe")) next.remove();
-        block.remove(); changed(); say("Kaldırıldı.", "ok");
+        const block = btn.closest(".media-block"), fig = figOf(block), act = btn.dataset.mb;
+        if (act === "del") {
+          const next = block.nextElementSibling;
+          if (next && next.tagName === "P" && !next.textContent.trim() && !next.querySelector("img,video,iframe")) next.remove();
+          block.remove(); changed(); say("Kaldırıldı.", "ok"); return;
+        }
+        if (/^m-/.test(act)) setAlign(fig, act);
+        if (act === "smaller") setWidth(fig, widthOf(fig) - 10);
+        if (act === "bigger") setWidth(fig, widthOf(fig) + 10);
+        if (act === "caption") {
+          const img = fig.querySelector("img");
+          let cap = fig.querySelector("figcaption");
+          const v = prompt("Fotoğrafın altında görünecek yazı (boş bırakırsan kaldırılır):", cap ? cap.textContent : "");
+          if (v !== null) {
+            if (v.trim()) { if (!cap) { cap = document.createElement("figcaption"); fig.insertBefore(cap, fig.querySelector(".mb-size")); } cap.textContent = v.trim(); }
+            else if (cap) cap.remove();
+          }
+          if (img) {
+            const a = prompt("Görselde ne var? Kısa, İngilizce (Google ve görme engelli okuyucular için):", img.getAttribute("alt") || (cap ? cap.textContent : ""));
+            if (a !== null) img.setAttribute("alt", a.trim());
+          }
+        }
+        changed();
       });
-      // Tap a photo in the editor to edit its description (alt text)
-      ed.addEventListener("click", (e) => {
-        const img = e.target.closest("img"); if (!img) return;
-        const v = prompt("Görsel açıklaması (alt text). Kısa, İngilizce:", img.getAttribute("alt") || "");
-        if (v !== null) { img.setAttribute("alt", v.trim()); say("✓ Görsel açıklaması güncellendi.", "ok"); }
+      // drag the bottom-right corner to resize, like Word
+      ed.addEventListener("pointerdown", (e) => {
+        const h = e.target.closest(".mb-resize"); if (!h) return;
+        e.preventDefault();
+        const fig = h.closest("figure"), startX = e.clientX, startW = fig.getBoundingClientRect().width, full = ed.clientWidth - 40;
+        const right = fig.classList.contains("m-right");
+        h.setPointerCapture(e.pointerId);
+        const move = (ev) => setWidth(fig, ((startW + (right ? startX - ev.clientX : ev.clientX - startX)) / full) * 100);
+        const up = () => { h.removeEventListener("pointermove", move); h.removeEventListener("pointerup", up); fig.classList.remove("m-full"); changed(); };
+        h.addEventListener("pointermove", move); h.addEventListener("pointerup", up);
       });
+
       async function uploadAsset(file, kind) {
         const ext = (file.name.split(".").pop() || "").toLowerCase().replace(/[^a-z0-9]/g, "") || (kind === "video" ? "mp4" : "jpg");
-        const path = `assets/${kind}-${Date.now()}.${ext}`;
+        const path = `assets/${kind}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
         await gh(`/repos/${SITE.repo}/contents/${path}`, { method: "PUT", body: JSON.stringify({ message: `Add ${kind}: ${file.name}`, content: await fileToB64(file) }) });
         return path;
       }
+      // the picture shows up at once; it uploads in the background
       async function handleUpload(file, kind, maxMB) {
         if (!file) return;
         if (file.size > maxMB * 1024 * 1024) { say(`Dosya çok büyük (en fazla ${maxMB} MB).${kind === "video" ? " Büyük videolar için YouTube'a yükleyip linkini ekleyebilirsin." : ""}`, "error"); return; }
+        const blob = URL.createObjectURL(file), id = "up" + Date.now() + Math.random().toString(36).slice(2, 6);
+        const alt = file.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").replace(/\b(img|image|dsc|pxl|whatsapp|screenshot)\b.*$/i, "").trim();
+        insertHTML(mediaBlock(kind === "video"
+          ? `<video class="video-file" src="${blob}" data-up="${id}" controls playsinline></video>`
+          : `<img src="${blob}" data-up="${id}" alt="${esc(alt)}">`));
+        const el = () => ed.querySelector(`[data-up="${id}"]`);
+        el()?.closest("figure")?.classList.add("uploading");
         say(kind === "video" ? "Video yükleniyor… (büyük dosyalarda biraz sürebilir)" : "Fotoğraf yükleniyor…");
         try {
-          const path = await uploadAsset(file, kind), blob = URL.createObjectURL(file);
-          if (kind === "video") insertHTML(mediaBlock(`<video class="video-file" src="${blob}" data-path="${esc(path)}" controls playsinline></video>`));
-          else {
-            const guess = file.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").replace(/\b(img|image|dsc|pxl|whatsapp|screenshot)\b.*$/i, "").trim();
-            const alt = (prompt("Görselde ne var? Kısa, İngilizce yaz (Google ve görme engelli okuyucular için).\nÖrn: Cutaway of a turbojet engine", guess) || "").trim();
-            const cap = (prompt("Fotoğrafın altında görünecek yazı (istersen boş bırak):", "") || "").trim();
-            insertHTML(mediaBlock(`<figure><img src="${blob}" data-path="${esc(path)}" alt="${esc(alt || cap)}">${cap ? `<figcaption>${esc(cap)}</figcaption>` : ""}</figure>`));
-          }
-          say(kind === "video" ? "✓ Video eklendi." : "✓ Fotoğraf eklendi.", "ok");
-        } catch (err) { say("Yüklenemedi: " + esc(err.message), "error"); }
+          const path = await uploadAsset(file, kind);
+          const m = el();
+          if (m) { m.setAttribute("data-path", path); m.removeAttribute("data-up"); m.closest("figure")?.classList.remove("uploading"); changed(); }
+          say(kind === "video" ? "✓ Video eklendi. Köşesinden sürükleyerek boyutunu, üstteki oklarla yerini değiştirebilirsin." : "✓ Fotoğraf eklendi. Köşesinden sürükleyerek boyutunu, üstteki oklarla yerini değiştirebilirsin.", "ok");
+        } catch (err) {
+          el()?.closest(".media-block")?.remove(); changed();
+          say("Yüklenemedi: " + esc(err.message), "error");
+        }
       }
       $("#imgFile").addEventListener("change", (e) => { handleUpload(e.target.files[0], "image", 8); e.target.value = ""; });
       $("#vidFile").addEventListener("change", (e) => { handleUpload(e.target.files[0], "video", 25); e.target.value = ""; });
@@ -1035,6 +1109,7 @@
         const html = p.format === "html" ? sanitize(p.content) : md(p.content);
         const tmp = document.createElement("div"); tmp.innerHTML = html;
         tmp.querySelectorAll("figure, video.video-file, div.video").forEach((el) => {
+          if (el.parentElement && el.parentElement.closest("figure")) return; // already inside a figure
           const wrap = document.createElement("div"); wrap.className = "media-block"; wrap.contentEditable = "false";
           el.replaceWith(wrap); wrap.appendChild(el);
         });
@@ -1071,6 +1146,7 @@
         const btn = $("#publishBtn");
         if (!f.title.value.trim()) { say("Önce bir başlık yaz.", "error"); f.title.focus(); return; }
         if (!textOf() && !hasMedia()) { say("Yazının içeriği boş.", "error"); ed.focus(); return; }
+        if (ed.querySelector("[data-up]")) { say("Fotoğraf/video hâlâ yükleniyor, birkaç saniye bekle.", "error"); return; }
         if (f.cover.value === "__upload" && !uploadFile) { say("Yüklemek için bir fotoğraf seç.", "error"); return; }
         btn.disabled = true; say(editing ? "Kaydediliyor…" : "Yayınlanıyor…");
         try {
