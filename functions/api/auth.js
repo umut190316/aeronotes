@@ -1,3 +1,4 @@
+import { clientIp } from "../../lib/clientip.js";
 /*
  * AeroNotes two-step login (Cloudflare Pages Function + D1)
  *
@@ -98,7 +99,7 @@ export async function onRequest({ request, env }) {
 
   if (action === "vault") {
     if (!enabled) return json({ error: "2FA is off." }, 400);
-    const ipHash = await sha256((request.headers.get("cf-connecting-ip") || "unknown") + "|aeronotes-auth");
+    const ipHash = await sha256(clientIp(request) + "|aeronotes-auth");
     await db.prepare("DELETE FROM auth_fails WHERE created_at < datetime('now', '-1 day')").run();
     const fails = await db.prepare("SELECT COUNT(*) AS n FROM auth_fails WHERE ip_hash = ? AND created_at > datetime('now', '-15 minutes')").bind(ipHash).first();
     if (fails && fails.n >= 5) return json({ error: "Çok fazla hatalı deneme. 15 dakika sonra tekrar dene." }, 429);

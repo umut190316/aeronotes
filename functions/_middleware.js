@@ -239,7 +239,7 @@ async function route(context) {
   try {
     if (path.startsWith("/api/")) return context.next();
     // Never serve repository/tooling files as pages
-    if (/^\/(\.git|\.wrangler|node_modules|functions|lib)(\/|$)|^\/(wrangler\.toml|README\.md|\.gitignore|\.nojekyll)$/i.test(plain) || /(^|\/)\.(git|wrangler|env|dev\.vars)/.test(plain))
+    if (/^\/(\.git|\.wrangler|node_modules|functions|lib|netlify-proxy)(\/|$)|^\/(wrangler\.toml|netlify\.toml|README\.md|\.gitignore|\.nojekyll)$/i.test(plain) || /(^|\/)\.(git|wrangler|env|dev\.vars)/.test(plain))
       return new Response("Not found", { status: 404, headers: { "content-type": "text/plain" } });
 
     const m = path.match(/^\/article\/([^/]+)$/);
@@ -247,7 +247,8 @@ async function route(context) {
 
     if (path === "/post.html" || path === "/post") {
       const id = url.searchParams.get("id");
-      if (id) return Response.redirect(new URL(postPath(id) + url.hash, url).toString(), 301);
+      // Relative Location, so the redirect also works behind the Netlify front door
+      if (id) return new Response(null, { status: 301, headers: { Location: postPath(id) } });
       return context.next();
     }
     if (path === "/sitemap.xml") return await sitemap(context);

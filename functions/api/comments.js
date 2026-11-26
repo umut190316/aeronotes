@@ -1,3 +1,4 @@
+import { clientIp } from "../../lib/clientip.js";
 import { loadPosts } from "../../lib/seo.js";
 import { isOffensive } from "../../lib/badwords.js";
 /*
@@ -100,9 +101,14 @@ export async function onRequest({ request, env }) {
     if (!author && /umutcan|bakirci|aeronotes|admin|moderator|dirtyairman/.test(fold(name)))
       return json({ error: "This name is reserved. Please use a different name." }, 400);
 
-    const ipHash = await sha256((request.headers.get("cf-connecting-ip") || "unknown") + "|" + (env.IP_SALT || "aeronotes"));
+    const ipHash = await sha256(clientIp(request) + "|" + (env.IP_SALT || "aeronotes"));
     const recent = await db.prepare("SELECT COUNT(*) AS n FROM comments WHERE ip_hash = ? AND created_at > datetime('now', '-10 minutes')").bind(ipHash).first();
     if (recent && recent.n >= 5) return json({ error: "Too many comments in a short time. Please try again in a few minutes." }, 429);
+    // Site-wide brake against spam floods (cannot be dodged by changing addresses)
+    if (!author) {
+      const all = await db.prepare("SELECT COUNT(*) AS n FROM comments WHERE is_author = 0 AND created_at > datetime('now', '-1 hour')").first();
+      if (all && all.n >= 60) return json({ error: "Comments are busy right now. Please try again a bit later." }, 429);
+    }
 
     // Published straight away; only comments with links are held for review (typical spam)
     const hasLink = /https?:\/\/|www\.|\b[a-z0-9-]+\.(com|net|org|ru|xyz|top|info|io|ly)\b/i.test(text + " " + name);

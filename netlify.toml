@@ -1,0 +1,14 @@
+# Netlify "front door" for AeroNotes.
+# *.pages.dev is blocked in Turkey, so aeronotesblog.netlify.app forwards every request
+# to the real site on Cloudflare Pages (from Netlify's servers, where it is reachable).
+# Nothing is built here; all pages, comments and login keep running on Cloudflare.
+
+[build]
+  publish = "netlify-proxy"
+  command = ""
+
+[[redirects]]
+  from = "/*"
+  to = "https://aeronotesblog.pages.dev/:splat"
+  status = 200
+  force = true
