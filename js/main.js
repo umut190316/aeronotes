@@ -857,7 +857,16 @@
       };
       ed.addEventListener("dragover", (e) => { if (mediaFiles(e.dataTransfer).length || [...(e.dataTransfer?.types || [])].includes("Files")) e.preventDefault(); });
       ed.addEventListener("drop", (e) => {
-        const files = mediaFiles(e.dataTransfer); if (!files.length) return;
+        const files = mediaFiles(e.dataTransfer);
+        if (!files.length) {
+          // a picture dragged straight from another website would only link to that site (and can vanish or be someone else's)
+          const types = [...(e.dataTransfer?.types || [])];
+          if (types.includes("text/html") || types.includes("text/uri-list")) {
+            e.preventDefault();
+            say("Başka bir siteden sürüklenen resim eklenemez. Resmi önce bilgisayarına kaydet, sonra 📷 Fotoğraf ile ekle (ya da dosyayı buraya sürükle).", "error");
+          }
+          return;
+        }
         e.preventDefault();
         const pos = document.caretRangeFromPoint ? document.caretRangeFromPoint(e.clientX, e.clientY) : null;
         if (pos && ed.contains(pos.startContainer)) { const s = getSelection(); s.removeAllRanges(); s.addRange(pos); savedRange = pos.cloneRange(); }
@@ -875,9 +884,19 @@
       // ---- photos & videos inside the text (inserted where the cursor is)
       const mediaBlock = (inner) => `<div class="media-block" contenteditable="false">${inner}</div><p><br></p>`;
       // every photo/video in the editor gets a "Remove" button (buttons are stripped when saving)
-      const decorateMedia = () => ed.querySelectorAll(".media-block").forEach((b) => {
-        if (!b.querySelector(":scope > .mb-del")) b.insertAdjacentHTML("afterbegin", '<button type="button" class="mb-del" title="Bu fotoğrafı/videoyu kaldır">✕ Kaldır</button>');
-      });
+      const decorateMedia = () => {
+        // any picture/video that got in some other way is put in a block too, so it can be removed
+        ed.querySelectorAll("img, video, iframe").forEach((m) => {
+          if (m.closest(".media-block")) return;
+          const target = m.closest("figure, .video") || m;
+          const wrap = document.createElement("div"); wrap.className = "media-block"; wrap.contentEditable = "false";
+          target.replaceWith(wrap); wrap.appendChild(target);
+        });
+        ed.querySelectorAll(".media-block").forEach((b) => {
+          if (!b.querySelector(":scope > .mb-del")) b.insertAdjacentHTML("afterbegin", '<button type="button" class="mb-del" title="Bu fotoğrafı/videoyu kaldır">✕ Kaldır</button>');
+        });
+      };
+      decorateMedia();
       new MutationObserver(decorateMedia).observe(ed, { childList: true, subtree: true });
       ed.addEventListener("mousedown", (e) => { if (e.target.closest(".mb-del")) e.preventDefault(); });
       ed.addEventListener("click", (e) => {
