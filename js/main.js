@@ -850,8 +850,23 @@
         if (k === "video") { $("#videoPop").hidden = !$("#videoPop").hidden; if (!$("#videoPop").hidden) $("#videoUrl").focus(); }
       });
       // keyboard shortcuts work too (Ctrl+B / Ctrl+I / Ctrl+U are built in)
+      // pasted or dropped photos/videos are uploaded just like with the 📷 / 🎬 buttons
+      const mediaFiles = (dt) => [...((dt && dt.files) || [])].filter((f) => /^(image|video)\//.test(f.type));
+      const uploadFiles = async (files) => {
+        for (const file of files) await handleUpload(file, file.type.startsWith("video/") ? "video" : "image", file.type.startsWith("video/") ? 25 : 8);
+      };
+      ed.addEventListener("dragover", (e) => { if (mediaFiles(e.dataTransfer).length || [...(e.dataTransfer?.types || [])].includes("Files")) e.preventDefault(); });
+      ed.addEventListener("drop", (e) => {
+        const files = mediaFiles(e.dataTransfer); if (!files.length) return;
+        e.preventDefault();
+        const pos = document.caretRangeFromPoint ? document.caretRangeFromPoint(e.clientX, e.clientY) : null;
+        if (pos && ed.contains(pos.startContainer)) { const s = getSelection(); s.removeAllRanges(); s.addRange(pos); savedRange = pos.cloneRange(); }
+        uploadFiles(files);
+      });
       ed.addEventListener("paste", (e) => {
         e.preventDefault();
+        const files = mediaFiles(e.clipboardData);
+        if (files.length) { uploadFiles(files); return; }
         const text = (e.clipboardData || window.clipboardData).getData("text/plain");
         const html = text.split(/\r?\n\s*\r?\n/).map((p) => "<p>" + esc(p).replace(/\r?\n/g, "<br>") + "</p>").join("");
         document.execCommand("insertHTML", false, html); changed();
