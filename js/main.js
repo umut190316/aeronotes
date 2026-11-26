@@ -859,6 +859,19 @@
 
       // ---- photos & videos inside the text (inserted where the cursor is)
       const mediaBlock = (inner) => `<div class="media-block" contenteditable="false">${inner}</div><p><br></p>`;
+      // every photo/video in the editor gets a "Remove" button (buttons are stripped when saving)
+      const decorateMedia = () => ed.querySelectorAll(".media-block").forEach((b) => {
+        if (!b.querySelector(":scope > .mb-del")) b.insertAdjacentHTML("afterbegin", '<button type="button" class="mb-del" title="Bu fotoğrafı/videoyu kaldır">✕ Kaldır</button>');
+      });
+      new MutationObserver(decorateMedia).observe(ed, { childList: true, subtree: true });
+      ed.addEventListener("mousedown", (e) => { if (e.target.closest(".mb-del")) e.preventDefault(); });
+      ed.addEventListener("click", (e) => {
+        const del = e.target.closest(".mb-del"); if (!del) return;
+        e.preventDefault();
+        const block = del.closest(".media-block"), next = block.nextElementSibling;
+        if (next && next.tagName === "P" && !next.textContent.trim() && !next.querySelector("img,video,iframe")) next.remove();
+        block.remove(); changed(); say("Kaldırıldı.", "ok");
+      });
       // Tap a photo in the editor to edit its description (alt text)
       ed.addEventListener("click", (e) => {
         const img = e.target.closest("img"); if (!img) return;

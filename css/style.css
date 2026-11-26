@@ -593,3 +593,5 @@ img.about-avatar.photo { object-fit: cover; object-position: 40% 25%; display: b
 .xbox-brand img { display: block; width: 100%; height: auto; max-height: 150px; object-fit: cover; border-radius: 12px; }
 .xbox-brand span { display: block; margin-top: 8px; font-size: 13px; color: var(--muted); }
 @media (max-width: 1479px) { .xbox-brand img { max-width: 320px; } }
+#editor .media-block .mb-del { position: absolute; top: 10px; right: 10px; z-index: 3; border: 0; border-radius: 999px; padding: 7px 14px; font: inherit; font-size: 14px; font-weight: 600; color: #fff; background: rgba(180, 35, 24, .92); cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+#editor .media-block .mb-del:hover { background: #b42318; }
